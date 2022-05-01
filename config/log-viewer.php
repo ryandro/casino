@@ -48,7 +48,7 @@ return [
      */
 
     'route'         => [
-        'enabled'    => true,
+        'enabled'    => false,
 
         'attributes' => [
             'prefix'     => 'log-viewer',
@@ -63,7 +63,7 @@ return [
      |  This defines how many logs & entries are displayed per page.
      */
 
-    'per-page'      => 30,
+    'per-page'      => 50,
 
     /* -----------------------------------------------------------------
      |  Download settings

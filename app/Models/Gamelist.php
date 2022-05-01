@@ -9,7 +9,6 @@ use Spatie\QueryBuilder\QueryBuilder;
 
 class Gamelist extends Model
 {
-
     protected $table = 'gamelist';
     protected $timestamp = true;
     protected $primaryKey = 'id';
@@ -42,9 +41,6 @@ class Gamelist extends Model
     ];
 
     public static function dataQueryGamelist() {
-        // need validator, for now fine, but if to use in production u will need to add proper throttle/mw/filters on this query
-        // https://spatie.be/docs/laravel-query-builder/v5/installation-setup
-        
         $data = QueryBuilder::for(Gamelist::class)->allowedFields(['game_id', 'fullName', 'funplay', 'open', 'thumbnail', 'isHot', 'isNew'])->allowedSorts('provider')->paginate()->appends(request()->query());
 
         return $data;
@@ -69,9 +65,7 @@ class Gamelist extends Model
     public static function cachedIndividualGame($game_id) {
         $gamespecificCached = Cache::get('cachedIndividualGame'.$game_id);
 
-        if(env('APP_ENV' === 'local')) {
-                Artisan::command('optimize:clear'); 
-        }
+        if(env('APP_ENV' === 'local')) { Artisan::command('optimize:clear'); }
 
         if(!$gamespecificCached) {
             $selectGame = self::cachedGamelist()->where('game_id', '=', $game_id)->first();
@@ -82,11 +76,7 @@ class Gamelist extends Model
                 return 'not found';
             }
         }
-
         return $gamespecificCached;
     }
-        
-
-
 
 }

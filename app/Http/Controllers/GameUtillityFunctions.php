@@ -14,14 +14,12 @@ class GameUtillityFunctions extends Controller
     public static function createNormalizedGameIDFormat($name, $provider, $api_id) 
     {
 
-        // Setup a normalized game_id format, for example for SEO reasons to have operator/aggregator name inside the game id that is used, please note
-        // this does invalidate all previous games and what not, so leave like below as app only for testing purposes and to generate seo texts based on SS id's 
+    //First removing spaces from name, and making lower capital letters, also removing several symbols - try to think properly of the order of deleting, as for example dleeting space bar first can cause issues for removing the 'and' word and so on.
 
-        // Also cause boongo just straight up was dogshit on their id's so yeh =P
+    // Setup a normalized game_id format, for example for SEO reasons to have operator/aggregator name inside the game id that is used, please note
+    // this does invalidate all previous games and what not, so leave like below as app only for testing purposes and to generate seo texts based on SS id's 
 
-        // It's adviseable if you end up changing below, to use a format that you can reproduce on a static ruleset, so that for example if your gamelist is not complete (think of live casino games or any other games with lobbies that allow player to switch around) you can still display same format game-list to player/ops.
-
-
+    // It's adviseable if you end up changing below, to use a format that you can reproduce on a static ruleset, so that for example if your gamelist is not complete (think of live casino games or any other games with lobbies that allow player to switch around) you can still display same format game-list to player/ops.
         try { 
             $game_name = $name;
             $game_provider = $provider;
@@ -31,7 +29,7 @@ class GameUtillityFunctions extends Controller
                 Log::debug('Incomplete origin id\'s provided: '.$game_name.$game_provider.$game_api_id);
             }
 
-            //First removing spaces from name, and making lower capital letters, also removing several symbols - try to think properly of the order of deleting, as for example dleeting space bar first can cause issues for removing the 'and' word and so on.
+            
             $formatGameNameReplace_lowered = strtolower($game_name);
             $formatGameNameReplace_andsymbol = str_replace("&", "", $formatGameNameReplace_lowered);
             $formatGameNameReplace_exclamation = str_replace("!", "", $formatGameNameReplace_andsymbol);
@@ -59,16 +57,17 @@ class GameUtillityFunctions extends Controller
 
             $finalizedAPIid = substr($game_api_id, 0, 1); // 1 letter
 
-            // Compacting the 3 parts together, split by the . symbol
-            return $finalizedGameName.'.'.$finalizedGameProvider.'-'.$finalizedAPIid;
+        // Compacting the 3 parts together
+        return $finalizedGameName.'.'.$finalizedGameProvider.'-'.$finalizedAPIid;
 
         } catch(Throwable $e) {
                 Log::debug('Hard error on trying to set normalized game id name format: '.$e);
         }
-
     }
 
+    /* To:do post, and also ofcourse the other game providers ways to insta import, maybe by making 'mapper' that can load xml/csv/spreadsheet to assign the mandatory fields quick and fast because rn its garbage to keep update listings 
 
+    can probably be done by factories function in laravel     */
     public static function getGamesListCURL($url, $data, $type = 'GET')
     {
         $curl = curl_init($url);
@@ -85,11 +84,6 @@ class GameUtillityFunctions extends Controller
         );
         curl_setopt($curl, CURLOPT_HTTPHEADER, $headers);
         curl_setopt($curl, CURLOPT_POSTFIELDS, $data);
-
-        if(env('APP_ENV') === 'local') {
-        curl_setopt($curl, CURLOPT_SSL_VERIFYHOST, false);
-        curl_setopt($curl, CURLOPT_SSL_VERIFYPEER, false);
-        }
 
         $resp = curl_exec($curl);
         curl_close($curl);
@@ -199,18 +193,11 @@ class GameUtillityFunctions extends Controller
                     'updated_at' => now(),
                 ]);
         }
-
-
-
-
-        }
+    }
         //dd($transformInFormat);
         //Log::notice($transformInFormat);
 
-        return json_encode($transformInFormat);
+   return json_encode($transformInFormat);
 
-
-    }
-
-
+ }
 }

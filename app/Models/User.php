@@ -14,9 +14,6 @@ class User extends Authenticatable
     use HasApiTokens, HasFactory, Notifiable;
 
     /**
-     * The attributes that are mass assignable.
-     *
-     * @var array<int, string>
      */
     protected $fillable = [
         'name',
@@ -48,7 +45,6 @@ class User extends Authenticatable
     /**
      * Return main balance with multi-currency available
      *
-     * @return \Illuminate\Contracts\Support\Renderable
      */
     public function balance($currencyRequest)
     {
@@ -76,7 +72,6 @@ class User extends Authenticatable
                 return '0.00 (Error, while user was found there was error)';
             }
         } else {
-            // Error, user not found
             Log::warning('Non-authed user trying to retrieve balance.');
             return '0.00 (Error, user not found)';
         }

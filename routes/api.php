@@ -14,22 +14,12 @@ use Illuminate\Support\Facades\Route;
 |
 */
 
-
-// Need to add middleware group for internal VLAN requests preferably -- actually better so later can loadbalance the gamerouter in seperate instances
-// Don't forget to set this url also in .env or create seperated/dynamic config based on nginx reverse balancer (is very easy ones to find to setup 2-3 pointed, prolly needed in higher traffic as we'll be having much more calls in some games)
-
 //Route::get('/game_tunnel/in/{provider_slug} ', [App\Http\Controllers\GameTunnelAPI::class, 'in'])->name('callbackIn');
 //Route::get('/game_tunnel/out/{provider_slug} ', [App\Http\Controllers\GameTunnelAPI::class, 'out'])->name('callbackOut');
 
 // Booongo Mixed
 Route::any('/game_tunnel/mixed/booongo/{game_slug}/{device_type}/{token}/{mode}', [App\Http\Controllers\GameTunnelAPI::class, 'mixed'])->name('mixed');
-
 Route::any('/game_tunnel/bgaming/{game_slug}/{random_id}/{token}', [App\Http\Controllers\GameTunnelAPI::class, 'bgamingMixed'])->name('bgamingMixed');
-
-
-
-
-
 
 
 
@@ -39,3 +29,5 @@ Route::get('/internal/gameRouter', [App\Http\Controllers\SlotmachineController::
 // Need to add external API middleware group for legit games to return callbacks or whatever, opens up to host the backend seperately also
 // Route::get('/external/gameRouter', [App\Http\Controllers\SlotmachineController::class, 'gameRouter'])->name('gameRouterExternal');
 
+Route::get('/data/gameslist', [App\Models\Gamelist::class, 'dataQueryGamelist'])->name('dataQueryGamelist');
+Route::get('/data/gamesessions', [App\Models\GameSessions::class, 'dataQueryGameSessions'])->name('dataQueryGameSessions');
