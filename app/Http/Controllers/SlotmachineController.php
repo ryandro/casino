@@ -33,7 +33,9 @@ class SlotmachineController extends Controller
 
 
         $validateQueryData = $request->validate([
-            'game_id' => ['required', 'max:50', 'min:3'],
+            'game_id' => ['required', 'max:35', 'min:3'],
+            'provider' => ['optional', 'max:15'],
+            'api_extension' => ['optional', 'max:10'],
         ]);
 
         if(!auth()->user()) {
@@ -53,6 +55,9 @@ class SlotmachineController extends Controller
         }
 
         $strLowerProvider = strtolower($selectGame->providerName);
+        if($request->provider) {
+            $strLowerProvider = strtolower($request->provider);
+        }
         $arrayAvailableProviders = 'bgaming, whatever'; // should be operator specific to check if provider is enabled for operator
 
         if(!isset($strLowerProvider, $arrayAvailableProviders)) {
@@ -87,8 +92,6 @@ class SlotmachineController extends Controller
             return 'error retrieving game url'; 
         }
 
-
-
         return view('launcher')->with('content', $getGameUrl);
     }
 
@@ -106,17 +109,20 @@ class SlotmachineController extends Controller
 
         if($method === 'gameRequestByPlayer') {
             /* 
-            !! Right now is not needed, but inevitable will be needed for some functions !!
+              !! Right now is not needed, but inevitable will be needed for some functions !!
 
-            $game = $fullContent->game;
-            $player = $fullContent->player;
-            $mode = $fullContent->mode;
+                $game = $fullContent->game;
+                $player = $fullContent->player;
+                $mode = $fullContent->mode;
             */
             $provider = $fullContent->provider;
             Log::notice($provider);
 
             if($provider === 'bgaming') { // actually should have uniform name, as done with currency in user() model for balance
                 self::bgamingSessionStart($request);
+            }
+            if($provider === 'booongo') {
+                self::booongoSessionStart($request);
             }
 
             Log::critical('Provider method not found, this should not happen as at launcher() function this should be checked.');
@@ -128,13 +134,66 @@ class SlotmachineController extends Controller
 
     }
 
+/*
+
+    public function generateSessionBoongo(Request $request){
+        $url = "https://gate-stage.betsrv.com/op/tigergames-stage/api/v1/game/list/";
+        $client = new Client([
+            'headers' => [ 
+                'Content-Type' => 'application/json'
+            ]
+        ]);
+        $guzzle_response = $client->post($url,
+                    ['body' => json_encode(
+                            [
+                                "api_token" => "hj1yPYivJmIX4X1I1Z57494re",
+                                "provider_id" => 2
+                            ]
+                    )]
+                );
+        $client_response = json_decode($guzzle_response->getBody()->getContents(),TRUE);
+        $data = array();
+        foreach($client_response["items"] as $game_data) {
+           if($game_data["type"]=="TABLE"){
+                if(array_key_exists("en",$game_data["i18n"])){
+                    $game = array(
+                        "game_type_id"=>5,
+                        "provider_id"=>22,
+                        "sub_provider_id"=>45,
+                        "game_name"=>$game_data["i18n"]["en"]["title"],
+                        "game_code"=>$game_data["game_id"],
+                        "icon"=>"https:".$game_data["i18n"]["en"]["banner_path"]
+                    );
+                    array_push($data,$game);
+                }
+            }
+        }
+        return $data;
+    }
 
 
+        'PLATFORM_SERVER_URL'=>'https://gate-stage.betsrv.com/op/',
+        'PROJECT_NAME'=>'tigergames-stage',
+        'WL'=>'prod',
+        'API_TOKEN'=>'hj1yPYivJmIX4X1I1Z57494re
+
+*/
+
+    /**
+     * Booongo Sesssion Start (needs be refactored obvs)
+     */
+    public function booongoSessionStart(Request $request)
+    {
+
+        $fullContent = $request;
+        $game_id = $fullContent->fullName;
+        $game = $fullContent->input('game_code');
+        $lang = "en";
+        $timestamp = Carbon::now()->timestamp();
+        $compactSessionUrl = "https://gate-stage.betsrv.com/op/tigergames-stage/game.html?wl=prod&token=hj1yPYivJmIX4X1I1Z57494re&game=".$game."&lang=".$lang."&sound=1&ts=".$timestamp."&quickspin=1&title=".$title."&platform=desktop";
 
 
-
-
-
+    }
 
 
 

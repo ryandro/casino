@@ -20,5 +20,8 @@ Route::get('/', function () {
 Auth::routes();
 
 Route::get('/', [App\Http\Controllers\HomeController::class, 'index'])->name('index');
+Route::get('/temp-provider/{provider_slug}', [App\Http\Controllers\HomeController::class, 'TEMPgroupByProvider'])->name('TEMPgroupByProvider');
 
 Route::get('/launcher', [App\Http\Controllers\SlotmachineController::class, 'launcher'])->name('launcher');
+
+
