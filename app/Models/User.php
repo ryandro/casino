@@ -68,7 +68,6 @@ class User extends Authenticatable
                     $floatValueString = floatval($balanceGet);
                     $decimalNormalize = number_format($floatValueString, 2, '.', ''); //for safety, make sure to normalize decimals to not get any php_precision errors
                     
-
                     // If making to grapi/graphql or whatever, probably want to make into json object below including the actual currency abbrevation & for example currency pricing/exchange rateV
                     return $decimalNormalize;
                 }

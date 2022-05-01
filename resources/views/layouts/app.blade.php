@@ -19,9 +19,9 @@
     <!-- Temp should be in scaffolding and not here -->
     <style>
         .game_card_img {
-            max-width: 200px;
+            max-width: 220px;
             height: auto;
-            border-radius: 1.5rem;
+            border-radius: 0.4rem;
             margin-bottom: 10px;
         }
     </style>

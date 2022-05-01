@@ -58,7 +58,7 @@ class HomeController extends Controller
     public function pagination($method, $amount = NULL, $extra_argument = NULL)
     {
         if($amount === NULL ) {
-            $amount = 10;
+            $amount = 50;
         }
 
 

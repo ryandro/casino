@@ -23,9 +23,8 @@
                             @endphp
                             @foreach($gamesPagination as $game)
                                 <div id="game_card" class="col-md">
-
                                        {{ $game['fullName'] }}
-                                       <img src="{{ $game['thumbnail'] }}">
+                                       <img class="game_card_img" src="{{ $game['thumbnail'] }}">
                                     </a>
                                 </div>
                             @endforeach

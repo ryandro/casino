@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use App\Models\Gamelist;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Http;
+use \Carbon\Carbon;
 
 class SlotmachineController extends Controller
 {
@@ -54,7 +55,7 @@ class SlotmachineController extends Controller
             // ! Error game_id not found 
         }
 
-        $strLowerProvider = strtolower($selectGame->providerName);
+        $strLowerProvider = strtolower($selectGame->provider);
         if($request->provider) {
             $strLowerProvider = strtolower($request->provider);
         }
@@ -108,24 +109,21 @@ class SlotmachineController extends Controller
         $method = $fullContent->method;
 
         if($method === 'gameRequestByPlayer') {
-            /* 
-              !! Right now is not needed, but inevitable will be needed for some functions !!
-
-                $game = $fullContent->game;
-                $player = $fullContent->player;
-                $mode = $fullContent->mode;
-            */
             $provider = $fullContent->provider;
-            Log::notice($provider);
 
-            if($provider === 'bgaming') { // actually should have uniform name, as done with currency in user() model for balance
-                self::bgamingSessionStart($request);
+            // should add EXTRA options for example per game/id/game_type and most importantly per api_id, these should however have additional filters hence why need to be done by yourself
+
+            if($provider === 'bgaming') {
+                return self::bgamingSessionStart($request); 
             }
             if($provider === 'booongo') {
-                self::booongoSessionStart($request);
+                return self::booongoSessionStart($request);
+            }
+            if($provider === 'playson') {
+                return self::playsonSessionStart($request);
             }
 
-            Log::critical('Provider method not found, this should not happen as at launcher() function this should be checked.');
+            Log::critical('Provider method not found, this should not happen as at launcher() function, unless unsupported provider was tried to launch this should be checked.');
             return false;
 
         }
@@ -134,66 +132,66 @@ class SlotmachineController extends Controller
 
     }
 
-/*
-
-    public function generateSessionBoongo(Request $request){
-        $url = "https://gate-stage.betsrv.com/op/tigergames-stage/api/v1/game/list/";
-        $client = new Client([
-            'headers' => [ 
-                'Content-Type' => 'application/json'
-            ]
-        ]);
-        $guzzle_response = $client->post($url,
-                    ['body' => json_encode(
-                            [
-                                "api_token" => "hj1yPYivJmIX4X1I1Z57494re",
-                                "provider_id" => 2
-                            ]
-                    )]
-                );
-        $client_response = json_decode($guzzle_response->getBody()->getContents(),TRUE);
-        $data = array();
-        foreach($client_response["items"] as $game_data) {
-           if($game_data["type"]=="TABLE"){
-                if(array_key_exists("en",$game_data["i18n"])){
-                    $game = array(
-                        "game_type_id"=>5,
-                        "provider_id"=>22,
-                        "sub_provider_id"=>45,
-                        "game_name"=>$game_data["i18n"]["en"]["title"],
-                        "game_code"=>$game_data["game_id"],
-                        "icon"=>"https:".$game_data["i18n"]["en"]["banner_path"]
-                    );
-                    array_push($data,$game);
-                }
-            }
-        }
-        return $data;
+    /**
+     *  Playson Sesssion Start (needs be refactored obvs)
+     */
+    public function playsonSessionStart(Request $request)
+    {
+        //Mapping to booongo (same API)
+        return self::booongoSessionStart($request);
     }
-
-
-        'PLATFORM_SERVER_URL'=>'https://gate-stage.betsrv.com/op/',
-        'PROJECT_NAME'=>'tigergames-stage',
-        'WL'=>'prod',
-        'API_TOKEN'=>'hj1yPYivJmIX4X1I1Z57494re
-
-*/
 
     /**
      * Booongo Sesssion Start (needs be refactored obvs)
      */
     public function booongoSessionStart(Request $request)
     {
+        // Will be trying diff method on this provisioning, in regards to 'balance modification' to hide within in there a simple socket/pusher //
 
         $fullContent = $request;
-        $game_id = $fullContent->fullName;
-        $game = $fullContent->input('game_code');
+        $ourGameID = $fullContent->game;
+        $selectGameBng = \App\Models\Gamelist::where('game_id', $ourGameID)->first(); // this shld be cached individually (on short cache game id strings)        
+        $gameName = $selectGameBng->fullName;
+
+        $api_origin_id = $selectGameBng->api_origin_id;
+        //This case merged orig id (numeric) and orig game_hash/id together, so split these:
+        $explodeIdMerge = explode('++', $api_origin_id);
+        $orig_id = $explodeIdMerge[0];
+        $orig_hash_id = $explodeIdMerge[1];
+
         $lang = "en";
-        $timestamp = Carbon::now()->timestamp();
-        $compactSessionUrl = "https://gate-stage.betsrv.com/op/tigergames-stage/game.html?wl=prod&token=hj1yPYivJmIX4X1I1Z57494re&game=".$game."&lang=".$lang."&sound=1&ts=".$timestamp."&quickspin=1&title=".$title."&platform=desktop";
+        $timestamp = time();
+        $compactSessionUrl = "https://gate-stage.betsrv.com/op/tigergames-stage/game.html?wl=demo&token=testtoken'.$timestamp.&game=".$orig_id."&lang=".$lang."&sound=1&ts=".$timestamp."&title=".$gameName."&platform=desktop";
+
+        // Curling/loading in the session URL to server, ready to edit whatever to then display to user after //
+        $ch = curl_init($compactSessionUrl);
+        curl_setopt($ch, CURLOPT_HEADER, false);
+        curl_setopt($ch, CURLOPT_USERAGENT,'Mozilla/5.0 (Windows; U; Windows NT 5.1; en-US; rv:1.8.1.13) Gecko/20080311 Firefox/2.0.0.13');
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+        curl_setopt($ch, CURLOPT_CONNECTTIMEOUT ,0); 
+        curl_setopt($ch, CURLOPT_TIMEOUT, 60);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+        $html = curl_exec($ch);
+        $redirectURL = curl_getinfo($ch, CURLINFO_EFFECTIVE_URL);
+        curl_close($ch);
+
+        $launcherTest = Http::withOptions([
+            'verify' => false,
+        ])->get($redirectURL);
 
 
+
+        $hardEditGameContent = str_replace('box7-stage.betsrv.com/gate-stage1/gs/', env('APP_BOOONGO_MIXED_API'), $launcherTest);
+        //$hardEditGameContent = str_replace('appStarted = false', 'appStarted = true', $hardEditGameContent);
+        $hardEditGameContent = str_replace('firstDetected = false', 'firstDetected = true', $hardEditGameContent);
+
+        $finalLauncherContent = $hardEditGameContent;
+
+        return view('launcher')->with('content', $finalLauncherContent);
     }
+
 
 
 
