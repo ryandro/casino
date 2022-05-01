@@ -30,9 +30,8 @@ class SlotmachineController extends Controller
         if(env('APP_ENV', 'local')) {
             Log::debug($request->fullUrl());
         }
+
         //Mode should be added (demo, currency etc.), currency should be in DOM of user
-
-
         $validateQueryData = $request->validate([
             'game_id' => ['required', 'max:35', 'min:3'],
             'provider' => ['optional', 'max:15'],
@@ -147,6 +146,8 @@ class SlotmachineController extends Controller
     public function booongoSessionStart(Request $request)
     {
         // Will be trying diff method on this provisioning, in regards to 'balance modification' to hide within in there a simple socket/pusher //
+        
+        $booongo_apikey = 'hj1yPYivJmIX4X1I1Z57494re';
 
         $fullContent = $request;
         $ourGameID = $fullContent->game;
@@ -182,7 +183,6 @@ class SlotmachineController extends Controller
         ])->get($redirectURL);
 
 
-
         $hardEditGameContent = str_replace('box7-stage.betsrv.com/gate-stage1/gs/', env('APP_BOOONGO_MIXED_API'), $launcherTest);
         //$hardEditGameContent = str_replace('appStarted = false', 'appStarted = true', $hardEditGameContent);
         $hardEditGameContent = str_replace('firstDetected = false', 'firstDetected = true', $hardEditGameContent);
@@ -205,17 +205,12 @@ class SlotmachineController extends Controller
         // In this test usecase  - I am using just demo method and adapt and change the demo currency & run auth/session on our own backend
         // Ofcourse, this can also be done with any currency, like korean WON or whatever shit native currency, while offering as USD 
 
-
         //real V
-        $url = 'https://bgaming-network.com/play/'.$fullContent->game.'/FUN?server=demo';
+        //$url = 'https://bgaming-network.com/play/'.$fullContent->game.'/FUN?server=demo';
 
         //testing V
-        $url = 'https://bgaming-network.com/games/AztecMagicBonanza/FUN?play_token=08601e87-acde-432b-b58f-4380a82c1654';
+        $url = 'https://bgaming-network.com/games/JokerQueen/FUN?play_token=e9bd5acb-98df-4538-8694-1a68c70447b4';
         Log::notice($url);
-
-        /* 
-
-        < need ssl >
 
         $ch = curl_init($url);
         curl_setopt($ch, CURLOPT_HEADER, false);
@@ -224,22 +219,16 @@ class SlotmachineController extends Controller
         curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
         curl_setopt($ch, CURLOPT_CONNECTTIMEOUT ,0); 
         curl_setopt($ch, CURLOPT_TIMEOUT, 60);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
         $html = curl_exec($ch);
-        $redirectURL = curl_getinfo($ch,CURLINFO_EFFECTIVE_URL );
+        $redirectURL = curl_getinfo($ch, CURLINFO_EFFECTIVE_URL);
         curl_close($ch);
-        echo "Redirected URL: " . $redirectURL . "<br/>";
-        return;
 
 
-        */
-
-
-        // Get game & session, apply this to user so also session can be reconnected towards, in case of BGAMING demo sessions will expire after 50-55 minutes, regardless if active or not, this means on full production.
-
-        // You will need to bridge sessions (can use easy cron for this, as we are running in backend this won't need any appending or change in the frontend!)
-
-
-        $curlingGame = Http::get($url);
+        $curlingGame = Http::withOptions([
+            'verify' => false,
+        ])->get($redirectURL);
 
         // str_replace basically is backend version of your regular js append/change
         $currency = $fullContent->currency;
@@ -247,38 +236,20 @@ class SlotmachineController extends Controller
 
 
         if($mode === 'real') {
-            $replaceCurrency = str_replace('FUN', $currency);
+            $replaceCurrency = str_replace('FUN', $currency, $curlingGame);
         }
 
 
-
-        /** Replacing the API url on frontend to ours to connect as man in middle 
-        // !! !! BELOW NEEDS TO GO TO README.MD !! !! //
-
-        PLEASE NOTE: there is endless possibilities, you can for example have just a simple js to change the iframe src link to real session (to hide), the other way around by appending the source below instead.
-
-        After the game iniatilized, the url can be changed back to bgaming, while it is still working on our api (after init connection)
-        
-        // AUTH //
-        No need for sentry at all, no need for posting etc. etc. - frontend still is hosted completely by the provider, auto updated.
-
-        The auth can be 1:1 based like provider, that means we simply put the session id to the player id, can use provider origin session, so you can easily check back games in back office @ provider.
-
-        Auth in this case is based on laravel (<3) but ofc can be any, don't need any posts or whatever the fuck with sentry or seperating the auth at all - as any reputable provider will have their session system setup properly we just use their session id system.
-
-        Example can be found at: www.cherry.games - where I changed origin bgaming slots in exact same fashion, but with a custom rebrandment
-        
-        **/
-
         // Check the API middleman function in this controller (to be made - 18:31pm)
-        $replaceAPItoOurs = str_replace('https://bgaming-network.com/api/', env('APP_BGAMING_API'));
+        $replaceAPItoOurs = str_replace('https://bgaming-network.com/api/', env('APP_BGAMING_API'), $curlingGame);
 
-        // Need to get a VPS/server or open HTTP port for next steps so just putting this aside
+        // Remove existing analytics, you can also replace by your own newrelic ID
+        $removeExistingAnalytics = str_replace('https://boost.bgaming-network.com/analytics.js', ' ', $replaceAPItoOurs);
 
 
-        // Lets take the original token, we will use this in our view blade (and also not single frontend fucking sentry callback route on frontend is needed like u guys are doing)
 
-        $finalGameContent = $replaceAPItoOurs; // not finished need open mocking API like said, above a small vps and/or opening my own ip, as for next step bgaming wil be sending us the slotmachine spins
+        $finalGameContent = $removeExistingAnalytics;
+
         return $finalGameContent;
 
         return view('launcher')->with('content', $finalGameContent);

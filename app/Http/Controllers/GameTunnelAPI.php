@@ -6,34 +6,17 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Http\Response;
 
-
-
 class GameTunnelAPI extends Controller
 {
-
-
-    /**
-     * Show the application dashboard.
-     *
-     */
     public function in(Request $request)
     {
 
     }
 
-
-    /**
-     * TEMP- retrieve listing/utillity for provider
-     */
     public function out(Request $request)
     {
        
     }
-
-
-
-// example https://box7-stage.betsrv.com/gate-stage1/gs/15_golden_eggs/desktop/a1d2131e6f014ed0957cbc76a68588e4/demo/?gsc=login
-
 
     public function mixed(Request $request)
     {
@@ -72,5 +55,54 @@ class GameTunnelAPI extends Controller
 
         return response()->json($resp);
 
+    }
+
+    public function bgamingMixed(Request $request)
+    {
+        // Add small validator though all should be ok, as most can be considered safe from side of bgaming/ss (with exceptions x)
+
+        // fully working still jlust need go on ssl or remote host to test, currency etc can simply be changed from bottom, would need just to collect the tokens/ssh as players enter, they are valid for 60 minutes in bgaming - which is more then sufficient i've felt 
+
+        // u can recontinue these below extremely easy, overly easy, more over balance amount dont matter, can play in minus etc. dont matter 
+
+
+       
+        $game = $request->game_slug;
+        $realToken = 'e9bd5acb-98df-4538-8694-1a68c70447b4'; //temp manual added token, simply use demo generator link for bgaming
+        $command = $request->command;
+
+        $urlFullUrl = $request->fullUrl();
+
+
+        $urlReplaceToReal = str_replace('http://localhost/api/game_tunnel/bgaming/', 'https://bgaming-network.com/api/', $urlFullUrl);
+        $url = $urlReplaceToReal;
+
+        $curl = curl_init($url);
+        curl_setopt($curl, CURLOPT_URL, $url);
+        curl_setopt($curl, CURLOPT_POST, true);
+        curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
+            
+        $headers = array(
+           "Referer: https://bgaming-network.com/games/JokerQueen/FUN?play_token=".$realToken,
+           "Origin: https://bgaming-network.com",
+           "Alt-Used: bgaming-network.com",
+           "Connection: keep-alive",
+           "Sec-Fetch-Mode: cors",
+           "Sec-Fetch-Site: same-origin",
+        );
+        $data = $request->all();
+        curl_setopt($curl, CURLOPT_HTTPHEADER, array('Content-Type: application/json', 'Accept: application/json'));
+        curl_setopt($curl, CURLOPT_POST, 1); 
+        curl_setopt($curl, CURLOPT_POSTFIELDS, json_encode($data));
+
+        curl_setopt($curl, CURLOPT_HTTPHEADER, $headers);
+        //for debug only!
+        curl_setopt($curl, CURLOPT_SSL_VERIFYHOST, false);
+        curl_setopt($curl, CURLOPT_SSL_VERIFYPEER, false);
+
+        $resp = curl_exec($curl);
+        curl_close($curl);
+
+        return $resp;
     }
 }

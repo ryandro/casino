@@ -2,14 +2,13 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Cache;
 use \Carbon\Carbon; 
+use Spatie\QueryBuilder\QueryBuilder;
 
 class Gamelist extends Model
 {
-    use HasFactory;
 
     protected $table = 'gamelist';
     protected $timestamp = true;
@@ -41,13 +40,15 @@ class Gamelist extends Model
         'api_origin_id',
         'api_extra'
     ];
-    /*
-    protected $castable = [
-        'created_at' => date(),
-        'updated_at' => date(),
-        'released_at' => date(),
-    ];
-    */
+
+    public static function dataQueryGamelist() {
+        // need validator, for now fine, but if to use in production u will need to add proper throttle/mw/filters on this query
+        // https://spatie.be/docs/laravel-query-builder/v5/installation-setup
+        
+        $data = QueryBuilder::for(Gamelist::class)->allowedFields(['game_id', 'fullName', 'funplay', 'open', 'thumbnail', 'isHot', 'isNew'])->allowedSorts('provider')->paginate()->appends(request()->query());
+
+        return $data;
+    }
 
     public static function cachedGamelist() {
         $gamelistResponse = Cache::get('cachedGamelist');
@@ -59,18 +60,32 @@ class Gamelist extends Model
         if(!$gamelistResponse) {
             $gamelistResponse = self::all();
 
-            $gamelist = Cache::put('cachedGamelist', $gamelistResponse, 10);
-        } 
+            $gamelist = Cache::put('cachedGamelist', $gamelistResponse, 15); // in minutes
+        }
 
         return $gamelistResponse;
     }
 
-    public static function mixJSONandDBEntries(Request $request) 
-    {
-        /* Finish later, after testing which frontend hax suit best as probably need extra fields */
-        return self::cachedGamelist();
-        /* ^^^^^^^^ */
+    public static function cachedIndividualGame($game_id) {
+        $gamespecificCached = Cache::get('cachedIndividualGame'.$game_id);
+
+        if(env('APP_ENV' === 'local')) {
+                Artisan::command('optimize:clear'); 
+        }
+
+        if(!$gamespecificCached) {
+            $selectGame = self::cachedGamelist()->where('game_id', '=', $game_id)->first();
+
+            if($selectGame) {
+            $gamespecificCached = Cache::put('cachedIndividualGame'.$game_id, $selectGame, 30); // in minutes
+            } else {
+                return 'not found';
+            }
+        }
+
+        return $gamespecificCached;
     }
+        
 
 
 

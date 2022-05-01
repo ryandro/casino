@@ -6,23 +6,21 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
 use App\Models\Gamelist;
+use Spatie\QueryBuilder\QueryBuilder;
 
 class GameUtillityFunctions extends Controller
 {
-    //
-    public static $booongo_apikey = 'hj1yPYivJmIX4X1I1Z57494re';
 
+    public static function createNormalizedGameIDFormat($name, $provider, $api_id) 
+    {
 
-    // Setup a normalized game_id format, for example for SEO reasons to have operator/aggregator name inside the game id that is used, please note
-    // this does invalidate all previous games and what not, so leave like below as app only for testing purposes and to generate seo texts based on SS id's 
+        // Setup a normalized game_id format, for example for SEO reasons to have operator/aggregator name inside the game id that is used, please note
+        // this does invalidate all previous games and what not, so leave like below as app only for testing purposes and to generate seo texts based on SS id's 
 
-    // Also cause boongo just straight up was dogshit on their id's so yeh =P
+        // Also cause boongo just straight up was dogshit on their id's so yeh =P
 
-    // It's adviseable if you end up changing below, to use a format that you can reproduce on a static ruleset, so that for example if your gamelist is not complete (think of live casino games or any other games with lobbies that allow player to switch around) you can still display same format game-list to player/ops.
+        // It's adviseable if you end up changing below, to use a format that you can reproduce on a static ruleset, so that for example if your gamelist is not complete (think of live casino games or any other games with lobbies that allow player to switch around) you can still display same format game-list to player/ops.
 
-    public static function createNormalizedGameIDFormat($name, $provider, $api_id) {
-
-        //Below Format based on gamename (max 10 string length) + first two letter from API extension + provider (4 first letter)
 
         try { 
             $game_name = $name;
@@ -71,36 +69,44 @@ class GameUtillityFunctions extends Controller
     }
 
 
-        // Using TIGER Mafia apikey
-
-    public static function retrieveGamesBooongo() {
-
-        $url = "https://gate-stage.betsrv.com/op/tigergames-stage/api/v1/game/list";
-
+    public static function getGamesListCURL($url, $data, $type = 'GET')
+    {
         $curl = curl_init($url);
         curl_setopt($curl, CURLOPT_URL, $url);
-        curl_setopt($curl, CURLOPT_POST, true);
+        
+        if($type === 'POST') {
+            curl_setopt($curl, CURLOPT_POST, true);
+        }
+
         curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
 
         $headers = array(
            "Content-Type: application/json",
         );
         curl_setopt($curl, CURLOPT_HTTPHEADER, $headers);
+        curl_setopt($curl, CURLOPT_POSTFIELDS, $data);
 
+        if(env('APP_ENV') === 'local') {
+        curl_setopt($curl, CURLOPT_SSL_VERIFYHOST, false);
+        curl_setopt($curl, CURLOPT_SSL_VERIFYPEER, false);
+        }
+
+        $resp = curl_exec($curl);
+        curl_close($curl);
+
+        return $resp;
+    }
+
+
+    public static function retrieveGamesBooongo()
+    {
+        $url = "https://gate-stage.betsrv.com/op/tigergames-stage/api/v1/game/list";
         $data = json_encode(array(
             "api_token" => "hj1yPYivJmIX4X1I1Z57494re",
           ));
 
-        curl_setopt($curl, CURLOPT_POSTFIELDS, $data);
-
-        if(env('APP_ENV') === 'local') 
-        {
-        curl_setopt($curl, CURLOPT_SSL_VERIFYHOST, false);
-        curl_setopt($curl, CURLOPT_SSL_VERIFYPEER, false);
-        }
-        
-        $resp = curl_exec($curl);
-        $resp = json_decode($resp, true);
+        $curlGamesListfromProvider = self::getGamesListCURL($url, $data, 'GET');
+        $resp = json_decode($curlGamesListfromProvider, true);
 
         foreach($resp['items'] as $gameItem)
         {
@@ -199,7 +205,6 @@ class GameUtillityFunctions extends Controller
 
         }
         //dd($transformInFormat);
-
         //Log::notice($transformInFormat);
 
         return json_encode($transformInFormat);

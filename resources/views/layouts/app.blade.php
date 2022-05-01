@@ -67,7 +67,7 @@
                                     {{ Auth::user()->name }}
                                 </a>
 
-                                <a id="navbarDropdown" class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false" v-pre>
+                                <a class="nav-link dropdown-toggle" href="#payment" role="button">
                                     {{ Auth::user()->balance($_COOKIE['currency'] ?? 'USD') }} {{ $_COOKIE['currency'] ?? 'USD' }}
                                 </a>
 

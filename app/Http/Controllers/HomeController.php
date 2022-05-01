@@ -40,61 +40,58 @@ class HomeController extends Controller
     /**
      * TEMP- retrieve listing/utillity for provider
      */
-    public function TEMPgroupByProvider($slug)
+    public function TEMPgroupByProvider(Request $request)
     {
-        if($slug === 'booongo') {
-            $list = GameUtillityFunctions::retrieveGamesBooongo();
-            //Log::notice($list);
-        }
 
-        return view('temp-gamelist-template')->with('gamesPagination', $list);
+      
+        return view('temp-gamelist-template')->with('gamesPagination', self::pagination('groupByProvider', '50', $slug));
     }
-
-
-
 
 
 
     public function pagination($method, $amount = NULL, $extra_argument = NULL)
     {
+
+        /* TO DO:
+        return Validator::make($data, [
+            'slug' => ['required', 'string', 'max:255'],
+            'email' => ['required', 'string', 'email', 'max:255', 'unique:users'],
+            'password' => ['required', 'string', 'min:8', 'confirmed'],
+        ]);
+
+
+        added laravel spatie, which should be used prolly standalone from models
+
+        */
+
         if($amount === NULL ) {
             $amount = 50;
         }
 
-
-
         try {
-        // Add here dom if to use production, or even is able to leave bano00na, should be cached in main function in demo or to use spatie's pagination: https://spatie.be/docs/laravel-query-builder/v5/introduction
+            if($method === 'index') {
+                $gamelistCached = Gamelist::cachedGamelist();
+                if($gamelistCached->count() > $amount) {
+                   $getGames = $gamelistCached->take($amount);
+                } else {
+                    $getGames = $gamelistCached->take($gamelistCached->count());
+                }
 
-        if($method === 'index') {
-            $gamelistCached = Gamelist::cachedGamelist();
-            if($gamelistCached->count() > $amount) {
-               $getGames = $gamelistCached->take($amount);
-            } else {
-                $getGames = $gamelistCached->take($gamelistCached->count());
+            } elseif($method === 'groupByProvider') {
+                $gamelistCached = Gamelist::cachedGamelist()->where('provider', $extra_argument);
+                if($gamelistCached > $amount) {
+                   $getGames = $gamelistCached->take($amount);
+                } else {
+                    $getGames = $gamelistCached->take($gamelistCached->count());
+                }
             }
 
-        } elseif($method === 'groupByProvider') {
-            $gamelistCached = Gamelist::cachedGamelist()->where('provider', $extra_argument)->get();
-            if($gamelistCached > $amount) {
-               $getGames = $gamelistCached->take($amount);
-            } else {
-                $getGames = $gamelistCached->take($gamelistCached->count());
-            }
-        }
+        return $getGames;
 
-            return $getGames;
-
-
-        // This should be stored in dom react/vue but i suck frontend hence for testing purposes of backend fraud instead of frontend all si bootstrapped
-
-        $jsonObjectify = json_encode($getGames);
         } catch (Throwable $e) {
-            
             if(env('APP_ENV') === 'local') {
                 Log::debug('Gamelist retrieval error: '.$e);
             }
-
             return false;
         }
 
