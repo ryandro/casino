@@ -15,7 +15,6 @@ class Presets extends Model
     
     /**
      * The attributes that are mass assignable.
-     *
      */
     protected $fillable = [
         'preset',
@@ -24,5 +23,6 @@ class Presets extends Model
         'created_at',
         'updated_at',
     ];
+    
 
 }
