@@ -110,9 +110,19 @@ class GameTunnelAPI extends Controller
                     }
 
                 }
+
+
+                if(isset($request['options']['purchased_feature'])) {
+                    if($request['options']['purchased_feature'] === "freespin_buy") {
+                        $betAmount = $request['options']['bet'] * 100;
+                        $winAmount = $data_origin['outcome']['win'];
+                    }
+                }
+
                 $data_origin['options']['currency']['code'] = $getSession->currency;
                 $data_origin['balance']['wallet'] = self::generalizedBetCall($getSession->player_id, $getSession->currency, $getSession->gameid, $betAmount, $winAmount);
             }
+
 
             if($request->command === 'freespin') {
                 $betAmount = $data_origin['outcome']['bet'];
