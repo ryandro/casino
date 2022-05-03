@@ -19,11 +19,11 @@
                     <div class="container">
                         <div class="row">
                             @foreach($gamesPagination as $game)
-                                <div id="game_card" class="col-md">
-                                    <a href="/launcher?game_id={{ $game->game_id }}" target="_blank">
-                                        <img class="game_card_img" src="{{ $game->thumbnail }}">
-                                    </a>
+                            <a class="col-md" href="/launcher?game_id={{ $game->game_id }}" target="_blank">
+                                <div id="game_card">
+                                        <img style="object-fit: fill;" class="game_card_img" src="{{ $game->thumbnail }}" style="max-width: 200px;">
                                 </div>
+                            </a>
                             @endforeach
                         </div>
                     </div>

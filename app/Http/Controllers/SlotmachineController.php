@@ -7,6 +7,7 @@ use App\Models\Gamelist;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Http;
 use \Carbon\Carbon;
+use Illuminate\Support\Str;
 
 class SlotmachineController extends Controller
 {
@@ -48,7 +49,7 @@ class SlotmachineController extends Controller
 
         /* Game Select & Retrieve */
         $game_id = $request->game_id; 
-        $selectGame = Gamelist::where('game_id', '=', $game_id)->first();
+        $selectGame = Gamelist::cachedGamelist()->where('game_id', '=', $game_id)->where('open', 1)->first();
 
         if(!$selectGame) {
             // ! Error game_id not found 
@@ -67,7 +68,10 @@ class SlotmachineController extends Controller
 
 
         $buildArray = array(
-            'game' => $selectGame->game_id,
+            'game_id' => $selectGame->game_id,
+            'game_name' => $selectGame->fullName,
+            'api_origin_id' => $selectGame->api_origin_id,
+            'api_extension' => $selectGame->api_extension,
             'provider' => $strLowerProvider,
             'player' => auth()->user()->id,
             'currency' => 'USD', // should be in request
@@ -79,20 +83,22 @@ class SlotmachineController extends Controller
         }
 
 
-        $getGameUrl = Http::timeout(5)->get('http://localhost/api/internal/gameRouter', $buildArray);
+        /* This router can be hosted externally (preferably) within a private network (VLAN) that is connected to the public API, this way also illegal games can be hard split (and thus accountabillity) */
+        return Http::timeout(5)->get('http://localhost:894/api/internal/gameRouter', $buildArray);
 
 
-        /* This is for same instance gamerouter passing, pretty much for staging:
-        $jsonObject = json_encode($buildArray, true);
-        $getGameUrl = self::gameRouter($jsonObject);
-        */
 
-        if(!$getGameUrl) {
-            // ! Error retrieving game url
-            return 'error retrieving game url'; 
-        }
+        //If script below continues, means that the getGameURL failed, so we can implement error handling below in future
 
-        return view('launcher')->with('content', $getGameUrl);
+        //Assign a random error identifier so we can store multiple of above (this all needs to go in handling exceptions within app at some point, though cause we wanna test sentry so far leaving that)
+
+        $errorcode = rand(10000, 9999999999);
+        Log::critical('ERRORID: '.$errorcode.' - $getGameUrl response: '.$getGameUrl);
+        Log::critical('ERRORID: '.$errorcode.' - $selectGame from gamelist: '.$selectGame);
+        Log::critical('ERRORID: '.$errorcode.' - Initial request to SlotmachineController.php: '.$request);
+        abort(400); // Error 400 bad request, error frontend can be edited in /resources/views/errors/*.blade.php
+        die();
+
     }
 
 
@@ -113,7 +119,7 @@ class SlotmachineController extends Controller
             // should add EXTRA options for example per game/id/game_type and most importantly per api_id, these should however have additional filters hence why need to be done by yourself
 
             if($provider === 'bgaming') {
-                return self::bgamingSessionStart($request); 
+                return view('launcher')->with('content', self::bgamingSessionStart($request)); 
             }
             if($provider === 'booongo') {
                 return self::booongoSessionStart($request);
@@ -121,6 +127,8 @@ class SlotmachineController extends Controller
             if($provider === 'playson') {
                 return self::playsonSessionStart($request);
             }
+
+
 
             Log::critical('Provider method not found, this should not happen as at launcher() function, unless unsupported provider was tried to launch this should be checked.');
             return false;
@@ -202,29 +210,61 @@ class SlotmachineController extends Controller
     {
 
         $fullContent = $request;
-        // In this test usecase  - I am using just demo method and adapt and change the demo currency & run auth/session on our own backend
-        // Ofcourse, this can also be done with any currency, like korean WON or whatever shit native currency, while offering as USD 
 
-        //real V
-        //$url = 'https://bgaming-network.com/play/'.$fullContent->game.'/FUN?server=demo';
 
-        //testing V
-        $url = 'https://bgaming-network.com/games/JokerQueen/FUN?play_token=e9bd5acb-98df-4538-8694-1a68c70447b4';
-        Log::notice($url);
+        //Check if existing internal session is available
+        $getInternalSession = \App\Models\GameSessions::where('game_id', $fullContent->game_id)->where('player_id', $fullContent->player)->where('currency', $fullContent->currency)->where('created_at', '>', Carbon::now()->subMinutes(45))->first();
+        
+        // <!!!! TESTING SESSION, UNCOMMMENT ABOVE - self note !>>>>
+        //$getInternalSession = NULL;
 
-        $ch = curl_init($url);
-        curl_setopt($ch, CURLOPT_HEADER, false);
-        curl_setopt($ch, CURLOPT_USERAGENT,'Mozilla/5.0 (Windows; U; Windows NT 5.1; en-US; rv:1.8.1.13) Gecko/20080311 Firefox/2.0.0.13');
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
-        curl_setopt($ch, CURLOPT_CONNECTTIMEOUT ,0); 
-        curl_setopt($ch, CURLOPT_TIMEOUT, 60);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-        $html = curl_exec($ch);
-        $redirectURL = curl_getinfo($ch, CURLINFO_EFFECTIVE_URL);
-        curl_close($ch);
+        $newSession = false;
 
+        //Create new internal session to relate towards, we will invalidate it after 45 minutes, mainly is used for 'continued' play so for exmaple if player leaves in middle of a bonus round or whatever, to connect to same session to continue play
+        if(!$getInternalSession) {
+            $createInternalSession = \App\Models\GameSessions::create([
+                'game_id' => $fullContent->game_id,
+                'token_internal' => Str::uuid(),
+                'token_original' => '0',
+                'currency' => $fullContent->currency,
+                'extra_meta' => 'n/a',
+                'expired_bool' => 0,
+                'player_id' => $fullContent->player,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+            $newSession = true;
+            $getInternalSession = $createInternalSession;
+        }
+
+
+        if($newSession === true) {
+
+            $url = 'https://bgaming-network.com/play/'.$fullContent->api_origin_id.'/FUN?server=demo';
+            $ch = curl_init($url);
+            curl_setopt($ch, CURLOPT_HEADER, false);
+            curl_setopt($ch, CURLOPT_USERAGENT,'Mozilla/5.0 (Windows; U; Windows NT 5.1; en-US; rv:1.8.1.13) Gecko/20080311 Firefox/2.0.0.13');
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+            curl_setopt($ch, CURLOPT_CONNECTTIMEOUT ,0); 
+            curl_setopt($ch, CURLOPT_TIMEOUT, 60);
+            curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
+            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+            $html = curl_exec($ch);
+            $redirectURL = curl_getinfo($ch, CURLINFO_EFFECTIVE_URL);
+            curl_close($ch);
+
+            $redirectURL = rawurldecode($redirectURL);
+            $url_components = parse_url($redirectURL);
+            $play_token = str_replace('play_token=', '', $url_components['query']);
+
+            $createInternalSession->update([
+                'token_original' => $play_token
+            ]);
+
+        } else {
+            $redirectURL = 'https://bgaming-network.com/games/'.$fullContent->api_origin_id.'/FUN?play_token='.$getInternalSession->token_original;
+        }
 
         $curlingGame = Http::withOptions([
             'verify' => false,
@@ -240,19 +280,20 @@ class SlotmachineController extends Controller
         }
 
 
+
         // Check the API middleman function in this controller (to be made - 18:31pm)
         $replaceAPItoOurs = str_replace('https://bgaming-network.com/api/', env('APP_BGAMING_API'), $curlingGame);
 
         // Remove existing analytics, you can also replace by your own newrelic ID
         $removeExistingAnalytics = str_replace('https://boost.bgaming-network.com/analytics.js', ' ', $replaceAPItoOurs);
-
-
+        $removeExistingAnalytics = str_replace('https://www.googletagmanager.com/gtag/js?id=UA-98852510-1', '', $removeExistingAnalytics);
+        $removeExistingAnalytics = str_replace('98852510', ' ', $removeExistingAnalytics);
+        $removeExistingAnalytics = str_replace('sentry', ' ', $removeExistingAnalytics);
+        $removeExistingAnalytics = str_replace('https://js-agent.newrelic.com/nr-1215.min.js', ' ', $removeExistingAnalytics);
 
         $finalGameContent = $removeExistingAnalytics;
 
         return $finalGameContent;
-
-        return view('launcher')->with('content', $finalGameContent);
 
     }
 

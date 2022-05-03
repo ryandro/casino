@@ -46,8 +46,8 @@ class GameUtillityFunctions extends Controller
             $formatGameProviderNameReplac_spaces = str_replace(" ", "", $formatGameProviderNameReplace_and);
 
             $finalizedGameName = $formatGameNameReplace_space;
-            if (strlen($finalizedGameName) > 16) {
-                $finalizedGameName = substr($formatGameNameReplace_space, 0, 16);
+            if (strlen($finalizedGameName) > 18) {
+                $finalizedGameName = substr($formatGameNameReplace_space, 0, 18);
             } 
 
             $finalizedGameProvider = $formatGameProviderNameReplac_spaces;
@@ -90,6 +90,109 @@ class GameUtillityFunctions extends Controller
 
         return $resp;
     }
+
+    public static function updateToLocalThumbnails() {
+
+    }
+
+    public static function retrieveGamesTollgate()
+    {
+        $url = env('APP_URL')."/gamelist.json";
+        $data = json_encode(array(
+            "api_token" => "hj1yPYivJmIX4X1I1Z57494re",
+          ));
+
+        $curlGamesListfromProvider = self::getGamesListCURL($url, $data, 'GET');
+        $resp = json_decode($curlGamesListfromProvider, true);
+        $api_origin_id = 'demo_method';
+
+        foreach($resp as $gameItem)
+        {
+            if($gameItem['provider_id'] === 'bgaming') {
+                $ourOwnGameID = self::createNormalizedGameIDFormat($gameItem['game_origin'], $gameItem['provider_id'], 'demo_method') ?? $gameItem['game_name'];
+                //Transforming Booongo/Playson list to our format, we then check database based on the api_origin_id & the normalized game ID we created above //
+                $transformInFormat[] = array(
+                    'game_id' => $ourOwnGameID,
+                    'thumbnail' => env('APP_URL').'/thumbnails/'.$gameItem['provider_id'].'/'.$gameItem['game_origin'].'.png',
+                    'thumbnail_ext' => $gameItem['image_default'],
+                    'provider' => $gameItem['provider_id'],
+                    'open' => 1,
+                    'isRecommend' => 0,
+                    'isNew' => 0,
+                    'isHot' => 0,
+                    'funplay' => 1,
+                    'rtpDes' => number_format(floatval($gameItem['rtp']), '2', '.', ''),
+                    'category' => 'slots',
+                    'short_desc' => $gameItem['game_meta'],
+                    'api_origin_id' => $gameItem['game_origin'],
+                    'api_extension' => $api_origin_id,
+                    'api_extra' => NULL,
+                    'released_at' => NULL,
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                );
+
+        $getFullGamelist = Gamelist::all();
+        $selectExistingGame = $getFullGamelist->where('game_id', '=', $ourOwnGameID)->where('provider', $gameItem['provider_id'])->first();
+        
+        if(!$selectExistingGame) {
+            $selectExistingGame = Gamelist::insert([
+                    'game_id' => $ourOwnGameID,
+                    'fullName' => $gameItem['game_name'],
+                    'provider' => $gameItem['provider_id'],
+                    'open' => 1,
+                    'isRecommend' => 0,
+                    'isNew' => 0,
+                    'isHot' => 0,
+                    'funplay' => 1,
+                    'rtpDes' => number_format(floatval($gameItem['rtp']), '2', '.', ''),
+                    'order_rating' => rand(0, 30),
+                    'category' => 'slots',
+                    'short_desc' => NULL,
+                    'api_origin_id' => $gameItem['game_origin'],
+                    'api_extension' => $api_origin_id,
+                    'api_extra' => NULL,
+                    'released_at' => NULL,
+                    'thumbnail' => env('APP_URL').'/thumbnails/'.$gameItem['provider_id'].'/'.$gameItem['game_origin'].'.png',
+                    'thumbnail_ext' => $gameItem['image_default'],
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
+
+        } else {
+
+            // Put update function here if you wish to upsert/modify existing game records with updated info from the game-list retrieval.
+            // Simply delete rows - probably you would need to create a main function for this to setup globally, depends  how many providers you plan on maintaining & updating
+
+            $selectExistingGame->update([
+                    'game_id' => $ourOwnGameID,
+                    'fullName' => $gameItem['game_name'],
+                    'provider' => $gameItem['provider_id'],
+                    'open' => 1,
+                    'isRecommend' => 0,
+                    'isNew' => 0,
+                    'isHot' => 0,
+                    'funplay' => 1,
+                    'rtpDes' => number_format(floatval($gameItem['rtp']), '2', '.', ''),
+                    'order_rating' => rand(0, 30),
+                    'category' => 'slots',
+                    'short_desc' => NULL,
+                    'api_origin_id' => $gameItem['game_origin'],
+                    'api_extension' => $api_origin_id,
+                    'api_extra' => NULL,
+                    'released_at' => NULL,
+                    'thumbnail' => env('APP_URL').'/thumbnails/'.$gameItem['provider_id'].'/'.$gameItem['game_origin'].'.png',
+                    'thumbnail_ext' => $gameItem['image_default'],
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
+        }
+    }
+        
+            }
+
+
+ }
 
 
     public static function retrieveGamesBooongo()

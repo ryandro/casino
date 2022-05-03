@@ -29,6 +29,7 @@ class Gamelist extends Model
         'rtpDes',
         'category',
         'order_rating',
+        'thumbnail_ext',
         'short_desc', 
         'funplay'
     ];

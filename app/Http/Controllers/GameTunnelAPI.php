@@ -22,7 +22,7 @@ class GameTunnelAPI extends Controller
     {
         $command = $request->command;
         $urlFullUrl = $request->fullUrl();
-        $urlReplaceToReal = str_replace('http://localhost/api/game_tunnel/mixed/booongo/', 'https://box7-stage.betsrv.com/gate-stage1/gs/', $urlFullUrl);
+        $urlReplaceToReal = str_replace(env('APP_URL').'/api/game_tunnel/mixed/booongo/', 'https://box7-stage.betsrv.com/gate-stage1/gs/', $urlFullUrl);
         $url = $urlReplaceToReal;
 
         $curl = curl_init($url);
@@ -62,39 +62,183 @@ class GameTunnelAPI extends Controller
         // and configured, in rare case games have own configu diff to the above - mainly the very very old may have a slight diff per win bet, but if u take last 50-70 games u will have no issues with just 3 configs
 
         $game = $request->game_slug;
-        $realToken = 'e9bd5acb-98df-4538-8694-1a68c70447b4'; //temp manual added token, simply use demo generator link for bgaming
+        $realToken = $request->token; //temp manual added token, simply use demo generator link for bgaming
         $command = $request->command;
 
         $urlFullUrl = $request->fullUrl();
-        $urlReplaceToReal = str_replace('http://localhost/api/game_tunnel/bgaming/', 'https://bgaming-network.com/api/', $urlFullUrl);
+        $urlReplaceToReal = str_replace(env('APP_URL').'/api/game_tunnel/bgaming/', 'https://bgaming-network.com/api/', $urlFullUrl);
         $url = $urlReplaceToReal;
 
+        Log::debug($urlReplaceToReal);
+        $data = $request->getContent();
         $curl = curl_init($url);
         curl_setopt($curl, CURLOPT_URL, $url);
-        curl_setopt($curl, CURLOPT_POST, true);
         curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
-            
-        $headers = array(
-           "Referer: https://bgaming-network.com/games/JokerQueen/FUN?play_token=".$realToken,
-           "Origin: https://bgaming-network.com",
-           "Alt-Used: bgaming-network.com",
-           "Connection: keep-alive",
-           "Sec-Fetch-Mode: cors",
-           "Sec-Fetch-Site: same-origin",
-        );
-        $data = $request->all();
         curl_setopt($curl, CURLOPT_HTTPHEADER, array('Content-Type: application/json', 'Accept: application/json'));
         curl_setopt($curl, CURLOPT_POST, 1); 
-        curl_setopt($curl, CURLOPT_POSTFIELDS, json_encode($data));
-        curl_setopt($curl, CURLOPT_HTTPHEADER, $headers);
+        curl_setopt($curl, CURLOPT_POSTFIELDS, $data);
+        curl_setopt($curl, CURLOPT_SSL_VERIFYHOST, false);
+        curl_setopt($curl, CURLOPT_SSL_VERIFYPEER, false);
 
         $resp = curl_exec($curl);
         curl_close($curl);
+        Log::debug('Response from BGAMING '.$request->command.' method: '.$resp);
 
-        // Line below the response is basically where u can edit, skip wins, do whatever, u just put balance there (based on the auth of user direct, ill start on this tomorrow i just started tonight with basics in systems to make mass abuses or different takes on the existing ones)
 
-        // u can combine this with ur frontend fraud & sentry frauds pretty easy basically all methods seem easy in general im gonna hide tomorrow the sentry if u will in the balance counter to see if that works better because of soon all will be public anyway 
-        // but tyty  for let me finish my things i had some fun sinc e2 months again 
-        return $resp;
+        $data_origin = json_decode($resp, true);
+        $getSession = \App\Models\GameSessions::where('token_original', $realToken)->first();
+        if($getSession) {
+
+        if(isset($data_origin['api_version'])) {
+        if($data_origin['api_version'] === "2"){
+
+
+            // Init is initial load, though can also be intermediary, when you for example switch tabs or are inactive for a while
+            if($request->command === 'init') {
+                $data_origin['options']['currency']['code'] = $getSession->currency;
+            }
+
+            // Spin bet amount (bet minus) should probably be in front of the actual cURL to bgaming above, but as we don't pay any ggr anyway, we might aswell cancel it afterwards for ease
+            if($request->command === 'spin') {
+                $betAmount = $data_origin['outcome']['bet'];
+                $winAmount = $data_origin['outcome']['win'];
+
+
+                if(isset($data_origin['flow']['purchased_feature']['name'])) {
+                    if($data_origin['flow']['purchased_feature']['name'] === 'freespin_chance') {
+                        $betAmount = $betAmount * 1.5;
+                    }
+
+                }
+                $data_origin['options']['currency']['code'] = $getSession->currency;
+                $data_origin['balance']['wallet'] = self::generalizedBetCall($getSession->player_id, $getSession->currency, $getSession->gameid, $betAmount, $winAmount);
+            }
+
+            if($request->command === 'freespin') {
+                $betAmount = $data_origin['outcome']['bet'];
+                $winAmount = $data_origin['outcome']['win'];
+
+                $data_origin['options']['currency']['code'] = $getSession->currency;
+                $data_origin['balance']['wallet'] = self::generalizedBetCall($getSession->player_id, $getSession->currency, $getSession->gameid, 0, $winAmount);
+            }
+
+
+
+        } else {
+            abort(500, 'BGaming API version not 0 neither api version is 2, new game engine possibly added?');
+        }
+
+        $data_origin['balance']['wallet'] = self::generalizedBalanceCall($getSession->player_id, $getSession->currency);
+        $data_origin['options']['currency']['code'] = "USD"; 
+
+    } else {
+        if($request->command === 'init' || $request->command === 'finish') {
+        if(isset($data_origin['balance'])) {
+            $data_origin['options']['currency']['code'] = "USD"; 
+            $data_origin['balance'] = self::generalizedBalanceCall($getSession->player_id, $getSession->currency);
+        }
+
+        }
+
+        if($request->command === 'spin' || $request->command === 'flip') {
+                
+                // heads or tails game
+                if($request->command === 'flip') {
+                        $betAmount = (int) $request['options']['bet'];
+                        $winAmount = 0;
+
+                        if(isset($data_origin['result']['total'])) {
+                            $winAmount =  $data_origin['result']['total'];
+                        }
+                        if(isset($data_origin['game']['state'])) {
+                            if($data_origin['game']['state'] === 'closed') {
+                            $data_origin['balance'] = self::generalizedBetCall($getSession->player_id, $getSession->currency, $getSession->gameid, $betAmount, $winAmount);
+                            }
+                        }
+                }
+
+                // Old BGAMING api, where you can set individual betlines when placing bet (* bet amount per betline)
+                if(isset($request['extra_data'])) {
+                        $multiplier = count($request['options']['bets']);
+                        $betAmount = (int) $multiplier * $request['options']['bets']['0'];
+                        $winAmount = 0;
+
+                        if(isset($data_origin['result']['total'])) {
+                            $winAmount = $data_origin['result']['total'];
+                        }
+                        //$winAmount = $data_origin['result']['total'];
+                        $data_origin['balance'] = self::generalizedBetCall($getSession->player_id, $getSession->currency, $getSession->gameid, $betAmount, $winAmount);
+
+                } elseif(isset($request['options']['skin'])) {
+                        $payload = '{"command":"'.$request['command'].'","options":{"bet":'.$request['options']['bet'].', "skin":"'.$request['options']['skin'].'" }}';
+                        $multiplier = 1 * $request['options']['bet']; 
+                } else {
+                        $payload = '{"command":"'.$request['command'].'","options":{"bet":'.$request['options']['bet'].'}}';
+                        $multiplier = 1 * $request['options']['bet']; 
+                }
+
+
+        }
+        }
+    } else {
+            abort(404, 'Internal Session not found.');
+    }
+
+    return response()->json($data_origin);
+
+    }
+
+
+    public function generalizedBalanceCall($playerid, $currency, $type = NULL) 
+    {
+        if($type === NULL) {
+            $type = 'internal';
+            $player = \App\Models\User::where('id', $playerid)->first();
+
+            if($currency === 'USD') {
+                return (int) $retrieveBalance = $player->balance_usd * 100;
+            } elseif($currency === 'EUR') {
+                return (int) $retrieveBalance = $player->balance_eur * 100;
+            } else {
+                abort(400, 'balance not supported');            
+            }
+        } else {
+            // Here we will add later on external balance/bet callbacks, outside of own system (for example i have in mind to make 'full api' & 'internal' mode)
+            $type = $type;
+        }
+    }
+
+
+    public function generalizedBetCall($playerid, $currency, $gameid, $betAmount, $winAmount, $type = NULL) 
+    {
+        if($type === NULL) {
+            $type = 'internal';
+            $player = \App\Models\User::where('id', $playerid)->first();
+
+            if($currency === 'USD') {
+                $playerCurrentBalance = self::generalizedBalanceCall($playerid, $currency);
+                
+                // To add error response for insufficient balance on bgaming
+                if($betAmount > $playerCurrentBalance) {
+                    abort(400, 'balance insufficient: '.$playerCurrentBalance.' bet: '.$betAmount);            
+                }
+
+                $processBetCalculation = $playerCurrentBalance - $betAmount;
+                $processWinCalculation = $processBetCalculation + $winAmount;
+                $transformToOurBalanceFormat = floatval($processWinCalculation / 100);
+                $player->update(['balance_usd' => $transformToOurBalanceFormat]);
+
+                return $processWinCalculation;
+
+
+            } elseif($currency === 'EUR') {
+                return (int) $retrieveBalance = $player->balance_eur * 100;
+            } else {
+                abort(400, 'balance not supported');            
+            }
+        } else {
+            // Here we will add later on external balance/bet callbacks, outside of own system (for example i have in mind to make 'full api' & 'internal' mode)
+            $type = $type;
+        }
     }
 }

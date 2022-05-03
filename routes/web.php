@@ -17,6 +17,8 @@ Auth::routes();
 Route::get('/', [App\Http\Controllers\HomeController::class, 'index'])->name('index');
 Route::get('/provider/{provider_slug}', [App\Http\Controllers\HomeController::class, 'groupByProvider'])->name('groupByProvider');
 
+Route::get('/testerJSON', [App\Http\Controllers\GameUtillityFunctions::class, 'retrieveGamesTollgate'])->name('retrieveGamesTollgate');
+
 // Need to add middleware for data group as is publically queried
 
 //Route::get('/data/providers', [App\Models\Gamelist::class, 'dataQueryProviders'])->name('dataQueryProviders');

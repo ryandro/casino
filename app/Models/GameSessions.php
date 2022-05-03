@@ -18,16 +18,16 @@ class GameSessions extends Model
         'token_internal',
         'player_id',
         'game_id',
+        'currency',
         'extra_meta',
+        'token_original',
         'expired_bool',
         'created_at',
         'updated_at',
     ];
 
-    protected $hidden = [
-        'token_original',
 
-    ];
+
 
     public static function dataQueryGameSessions() {
         $data = QueryBuilder::for(GameSessions::class)

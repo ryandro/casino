@@ -15,7 +15,6 @@
 
                     @auth
                     <p><b>{{ __('Welcome, '.auth()->user()->name) }}</b></p>
-
                     <div class="container">
                         <div class="row">
                             @php
@@ -30,11 +29,9 @@
                             @endforeach
                         </div>
                     </div>
-
-
                     
                     @else
-                    {{ __('You are not logged in, log in to start playing the best casino.') }}
+                        {{ __('You are not logged in, log in to start playing the best casino.') }}
                     @endauth
 
 
