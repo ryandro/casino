@@ -127,6 +127,9 @@ class SlotmachineController extends Controller
             if($provider === 'playson') {
                 return self::playsonSessionStart($request);
             }
+            if($provider === 'pragmaticplay') {
+                return self::pragmaticplaySessionStart($request);
+            }
 
 
 
@@ -139,11 +142,55 @@ class SlotmachineController extends Controller
 
     }
 
+
+    /**
+     *  Pragmaticplay Sesssion Start (needs be refactored obvs)
+     */
+    public function pragmaticplaySessionStart(Request $request)
+    {
+
+        $compactSessionUrl = "https://demogamesfree.pragmaticplay.net/gs2c/openGame.do?gameSymbol=vs20drtgold&websiteUrl=https%3A%2F%2Fdemogamesfree.pragmaticplay.net&jurisdiction=99&lobby_url=https%3A%2F%2Fwww.pragmaticplay.com%2Fen%2F&lang=EN&cur=USD";
+
+
+
+        // Curling/loading in the session URL to server, ready to edit whatever to then display to user after //
+        $ch = curl_init($compactSessionUrl);
+        curl_setopt($ch, CURLOPT_HEADER, false);
+        curl_setopt($ch, CURLOPT_USERAGENT,'Mozilla/5.0 (Windows; U; Windows NT 5.1; en-US; rv:1.8.1.13) Gecko/20080311 Firefox/2.0.0.13');
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+        curl_setopt($ch, CURLOPT_CONNECTTIMEOUT ,0); 
+        curl_setopt($ch, CURLOPT_TIMEOUT, 60);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+        $html = curl_exec($ch);
+        $redirectURL = curl_getinfo($ch, CURLINFO_EFFECTIVE_URL);
+        curl_close($ch);
+
+        $launcherTest = Http::withOptions([
+            'verify' => false,
+        ])->get($redirectURL);
+
+        $replaceAPItoOurs = str_replace('"datapath":"https://demogamesfree.pragmaticplay.net/gs2c/common/games-html5/games/vs',  '"datapath":"'.env('APP_URL').'/static_pragmatic', $launcherTest);
+        $replaceAPItoOurs = str_replace('"/gs2c',  '"/api/gs2c', $replaceAPItoOurs);
+
+
+
+
+        $finalLauncherContent = $replaceAPItoOurs;
+
+        return view('launcher')->with('content', $finalLauncherContent);
+
+    }
+
+
     /**
      *  Playson Sesssion Start (needs be refactored obvs)
      */
     public function playsonSessionStart(Request $request)
     {
+
+
         //Mapping to booongo (same API)
         return self::booongoSessionStart($request);
     }
@@ -291,6 +338,9 @@ class SlotmachineController extends Controller
         $removeExistingAnalytics = str_replace('sentry', ' ', $removeExistingAnalytics);
         $removeExistingAnalytics = str_replace('https://js-agent.newrelic.com/nr-1215.min.js', ' ', $removeExistingAnalytics);
 
+        //$url = str_replace('resources_path":"https://cdn.bgaming-network.com/html/BonanzaBillion', 'resources_path":"'.env('APP_URL').'/static/prod/HappyBillions-2', $removeExistingAnalytics);
+        //$url = str_replace('https://cdn.bgaming-network.com/html/BonanzaBillion/loader.js', env('APP_URL').'/static/prod/HappyBillions-2/loader.js', $url);
+        //$url = str_replace('https://cdn.bgaming-network.com/html/BonanzaBillion/bundle.js', env('APP_URL').'/static/prod/HappyBillions-2/basic/v0.0.1/bundle.js', $url);
         $finalGameContent = $removeExistingAnalytics;
 
         return $finalGameContent;

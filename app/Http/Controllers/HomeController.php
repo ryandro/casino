@@ -7,7 +7,7 @@ use App\Models\Gamelist;
 use App\Http\Controllers\GameUtillityFunctions;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Http\Response;
-
+use Illuminate\Support\Facades\Session;
 
 
 class HomeController extends Controller
@@ -30,11 +30,26 @@ class HomeController extends Controller
     public function index()
     {
         if(auth()->user()) {
-            return view('index')->with('gamesPagination', self::pagination('index'));
+            return view('index')->with('gamesPagination', self::pagination('index', '100'));
         }
 
         return view('index');
     }
+
+    public function iframe($game)
+    {
+        $gamelistCached = Gamelist::cachedGamelist();
+
+        if(!auth()->user()) {
+            Session::flash('error', 'You need to login.');
+        }
+        if(!$gamelistCached->where('game_id', $game)->where('open', 1)->first()) {
+            Session::flash('error', 'Game not found.');
+        }
+
+        return view('iframe')->with('game', $game);
+    }
+
 
 
     /**
@@ -43,8 +58,9 @@ class HomeController extends Controller
     public function TEMPgroupByProvider(Request $request)
     {
 
+
       
-        return view('temp-gamelist-template')->with('gamesPagination', self::pagination('groupByProvider', '50', $slug));
+        return view('temp-gamelist-template')->with('gamesPagination', self::pagination('groupByProvider', '100', $slug));
     }
 
 

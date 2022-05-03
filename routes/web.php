@@ -15,14 +15,14 @@ use Illuminate\Support\Facades\Route;
 Auth::routes();
 
 Route::get('/', [App\Http\Controllers\HomeController::class, 'index'])->name('index');
-Route::get('/provider/{provider_slug}', [App\Http\Controllers\HomeController::class, 'groupByProvider'])->name('groupByProvider');
+// /Route::get('/provider/{provider_slug}', [App\Http\Controllers\HomeController::class, 'groupByProvider'])->name('groupByProvider');
 
-Route::get('/testerJSON', [App\Http\Controllers\GameUtillityFunctions::class, 'retrieveGamesTollgate'])->name('retrieveGamesTollgate');
-
-// Need to add middleware for data group as is publically queried
-
-//Route::get('/data/providers', [App\Models\Gamelist::class, 'dataQueryProviders'])->name('dataQueryProviders');
+Route::get('/play/{game}', [App\Http\Controllers\HomeController::class, 'iframe'])->name('iframe');
 
 Route::get('/launcher', [App\Http\Controllers\SlotmachineController::class, 'launcher'])->name('launcher');
 
+
+//Route::get('/static_pragmatic/{game_id}/desktop/game/{file}', [App\Http\Controllers\GameUtillityFunctions::class, 'getJSExternal'])->name('getJSExternal');
+//Route::get('/static_pragmatic/{game_id}/desktop/client/{file}', [App\Http\Controllers\GameUtillityFunctions::class, 'getJSExternal'])->name('getJSExternal');
+//Route::get('/static_pragmatic/{game_id}/desktop/{file}', [App\Http\Controllers\GameUtillityFunctions::class, 'getJSExternal'])->name('getJSExternal');
 

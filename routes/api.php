@@ -25,6 +25,11 @@ Route::any('/game_tunnel/bgaming/{game_slug}/{token}', [App\Http\Controllers\Gam
 
 
 
+//Route::any('/gs2c/ge/v4/gameService', [App\Http\Controllers\GameTunnelAPI::class, 'pragmaticplayMixed'])->name('pragmaticplayMixed');
+//Route::any('/gs2c/saveSettings.do', [App\Http\Controllers\GameTunnelAPI::class, 'pragmaticplayMixed'])->name('pragmaticplayMixed');
+//Route::any('/gs2c/reloadBalance.do', [App\Http\Controllers\GameTunnelAPI::class, 'pragmaticplayMixed'])->name('pragmaticplayMixed');
+
+
 // Need to add middleware group for internal VLAN requests preferably -- actually better so later can loadbalance the gamerouter in seperate instances
 Route::get('/internal/gameRouter', [App\Http\Controllers\SlotmachineController::class, 'gameRouter'])->name('gameRouterInternal');
 

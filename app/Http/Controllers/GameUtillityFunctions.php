@@ -7,9 +7,47 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
 use App\Models\Gamelist;
 use Spatie\QueryBuilder\QueryBuilder;
+use Illuminate\Support\Facades\Http;
 
 class GameUtillityFunctions extends Controller
 {
+
+
+    public static function getJSExternal(Request $request) 
+    {   
+        $requestUrl = $request->fullUrl();
+
+
+        $urlReplaceToReal = str_replace(env('APP_URL').'/static_pragmatic/', 'https://demogamesfree.pragmaticplay.net/gs2c/common/games-html5/games/vs/', $requestUrl);
+        $url = $urlReplaceToReal;
+ 
+
+        $curl = curl_init($url);
+        curl_setopt($curl, CURLOPT_URL, $url);
+        curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($curl, CURLOPT_POST, 0); 
+        curl_setopt($curl, CURLOPT_SSL_VERIFYHOST, false);
+        curl_setopt($curl, CURLOPT_SSL_VERIFYPEER, false);
+        curl_setopt($curl, CURLOPT_CONNECTTIMEOUT, 2); 
+        curl_setopt($curl, CURLOPT_TIMEOUT, 20);
+        if(str_contains($requestUrl, 'css')) {
+            $httpHeader = array('Content-Type: application/xhtml+xml', 'Accept: text/html,application/xhtml+xml');
+            $type = 'text/css';
+        } else {
+            $httpHeader = array('Content-Type: application/json', 'Accept: application/json');
+            $type = 'application/javascript';
+        }
+        curl_setopt($curl, CURLOPT_HTTPHEADER, $httpHeader);
+
+
+        $resp = curl_exec($curl);
+        curl_close($curl);
+        
+
+        return response($resp)->header('Content-Type', $type);
+
+    }
+
 
     public static function createNormalizedGameIDFormat($name, $provider, $api_id) 
     {
@@ -91,9 +129,6 @@ class GameUtillityFunctions extends Controller
         return $resp;
     }
 
-    public static function updateToLocalThumbnails() {
-
-    }
 
     public static function retrieveGamesTollgate()
     {

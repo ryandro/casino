@@ -181,22 +181,6 @@
         "image_square": "https://cdn.betboi.io/square/bgaming/bga-g-aztec-magic-bonanza.png"
     },
     {
-        "game_name": "SpaceXY",
-        "game_id": "bga-g-space-xy",
-        "game_origin": "SpaceXY",
-        "game_meta": "Crash Game",
-        "provider_id": "bgaming",
-        "demo_support": 1,
-        "index": 42,
-        "rtp": 97.13,
-        "category": "slots",
-        "active": 0,
-        "bonusbuy": 1,
-        "image_id": "/bgaming/bga-g-space-xy.png",
-        "image_default": "https://cdn.betboi.io/default/bgaming/bga-g-space-xy.png",
-        "image_square": "https://cdn.betboi.io/square/bgaming/bga-g-space-xy.png"
-    },
-    {
         "game_name": "Crazy Time",
         "game_id": "evo-n-crazy-time",
         "game_origin": "es_es-crazy-time",
@@ -6837,9 +6821,9 @@
         "image_square": "https://cdn.betboi.io/square/virtualsports/vir-s-fortune-wheel.png"
     },
     {
-        "game_name": "Rocket Dice",
-        "game_id": "bga-g-rocket-dice",
-        "game_origin": "RocketDice",
+        "game_name": "Mine Sweeper XY",
+        "game_id": "bga-g-mine-sweeper-xy",
+        "game_origin": "MinesweeperXY",
         "game_meta": "slot",
         "provider_id": "bgaming",
         "demo_support": 1,
@@ -6848,9 +6832,9 @@
         "category": "slots",
         "active": 0,
         "bonusbuy": 0,
-        "image_id": "/bgaming/bga-g-rocket-dice.png",
-        "image_default": "https://cdn.betboi.io/default/bgaming/bga-g-rocket-dice.png",
-        "image_square": "https://cdn.betboi.io/square/bgaming/bga-g-rocket-dice.png"
+        "image_id": "/bgaming/bga-g-mine-sweeper-xy.png",
+        "image_default": "https://cdn.betboi.io/default/bgaming/bga-g-mine-sweeper-xy.png",
+        "image_square": "https://cdn.betboi.io/square/bgaming/bga-g-mine-sweeper-xy.png"
     },
     {
         "game_name": "Wolf Moon",

@@ -50,19 +50,42 @@ class GameTunnelAPI extends Controller
         return response()->json($resp);
     }
 
+
+    public function pragmaticplayMixed(Request $request)
+    {
+        $game = $request->game_slug;
+        $realToken = $request->token;
+        $command = $request->command;
+
+
+
+        $urlFullUrl = $request->fullUrl();
+        $urlReplaceToReal = str_replace(env('APP_URL').'/gs2c/ge/v4/gameService', 'https://demogamesfree.pragmaticplay.net/gs2c/ge/v4/gameService', $urlFullUrl);
+        $url = $urlReplaceToReal;
+
+        Log::debug($urlReplaceToReal);
+        $data = $request->getContent();
+        $curl = curl_init($url);
+        curl_setopt($curl, CURLOPT_URL, $url);
+        curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($curl, CURLOPT_HTTPHEADER, array('Content-Type: application/json', 'Accept: application/json'));
+        curl_setopt($curl, CURLOPT_POST, 1); 
+        curl_setopt($curl, CURLOPT_POSTFIELDS, $data);
+        curl_setopt($curl, CURLOPT_SSL_VERIFYHOST, false);
+        curl_setopt($curl, CURLOPT_SSL_VERIFYPEER, false);
+
+        $resp = curl_exec($curl);
+        curl_close($curl);
+     
+        $data_origin = json_decode($resp, true);
+
+        return response()->json($data_origin);                
+    }
+
     public function bgamingMixed(Request $request)
     {
-        // Add small validator though all should be ok, as most can be considered safe from side of bgaming/ss (with exceptions x)
-
-        // fully working still jlust need go on ssl or remote host to test, currency etc can simply be changed from bottom, would need just to collect the tokens/ssh as players enter, they are valid for 60 minutes in bgaming - which is more then sufficient i've felt 
-
-        // u can recontinue these below extremely easy, overly easy, more over balance amount dont matter, can play in minus etc. dont matter 
-
-        // STILL NEEDS to be edited per game type (provably fair, older games from bgaming (with configurable per line bets) and newwer) 
-        // and configured, in rare case games have own configu diff to the above - mainly the very very old may have a slight diff per win bet, but if u take last 50-70 games u will have no issues with just 3 configs
-
         $game = $request->game_slug;
-        $realToken = $request->token; //temp manual added token, simply use demo generator link for bgaming
+        $realToken = $request->token;
         $command = $request->command;
 
         $urlFullUrl = $request->fullUrl();
@@ -92,7 +115,6 @@ class GameTunnelAPI extends Controller
         if(isset($data_origin['api_version'])) {
         if($data_origin['api_version'] === "2"){
 
-
             // Init is initial load, though can also be intermediary, when you for example switch tabs or are inactive for a while
             if($request->command === 'init') {
                 $data_origin['options']['currency']['code'] = $getSession->currency;
@@ -103,18 +125,35 @@ class GameTunnelAPI extends Controller
                 $betAmount = $data_origin['outcome']['bet'];
                 $winAmount = $data_origin['outcome']['win'];
 
-
                 if(isset($data_origin['flow']['purchased_feature']['name'])) {
                     if($data_origin['flow']['purchased_feature']['name'] === 'freespin_chance') {
+                        if($game === 'AlohaKingElvis') {
+                            $betAmount = $betAmount * 1.33;
+                        }
                         $betAmount = $betAmount * 1.5;
                     }
+                    if($data_origin['flow']['purchased_feature']['name'] === 'bonus_chance') {
+                        $betAmount = $betAmount * 1.33;
+                    }
 
+                    if($data_origin['flow']['purchased_feature']['name'] === 'freespin_and_bonus_chance') {
+                        $betAmount = $betAmount * 1.6;
+                    }
                 }
 
-
+                //Bonus buy on bgaming api version 2
                 if(isset($request['options']['purchased_feature'])) {
                     if($request['options']['purchased_feature'] === "freespin_buy") {
-                        $betAmount = $request['options']['bet'] * 100;
+                        if($game === 'ZorroWildHeart') {
+                            $bonusBuyPrice = 50;
+                        } elseif($game === 'DigDigDigger') {
+                            $bonusBuyPrice = 110;
+                        } else {
+                            $bonusBuyPrice = 100;
+                        }
+
+
+                        $betAmount = $request['options']['bet'] * $bonusBuyPrice;
                         $winAmount = $data_origin['outcome']['win'];
                     }
                 }
@@ -122,7 +161,6 @@ class GameTunnelAPI extends Controller
                 $data_origin['options']['currency']['code'] = $getSession->currency;
                 $data_origin['balance']['wallet'] = self::generalizedBetCall($getSession->player_id, $getSession->currency, $getSession->gameid, $betAmount, $winAmount);
             }
-
 
             if($request->command === 'freespin') {
                 $betAmount = $data_origin['outcome']['bet'];
@@ -132,25 +170,22 @@ class GameTunnelAPI extends Controller
                 $data_origin['balance']['wallet'] = self::generalizedBetCall($getSession->player_id, $getSession->currency, $getSession->gameid, 0, $winAmount);
             }
 
-
-
         } else {
-            abort(500, 'BGaming API version not 0 neither api version is 2, new game engine possibly added?');
+            abort(500, 'BGaming API version not 1 neither api version is 2, new game engine possibly added?');
         }
 
         $data_origin['balance']['wallet'] = self::generalizedBalanceCall($getSession->player_id, $getSession->currency);
-        $data_origin['options']['currency']['code'] = "USD"; 
+        $data_origin['options']['currency']['code'] = $getSession->currency;
 
     } else {
         if($request->command === 'init' || $request->command === 'finish') {
-        if(isset($data_origin['balance'])) {
-            $data_origin['options']['currency']['code'] = "USD"; 
-            $data_origin['balance'] = self::generalizedBalanceCall($getSession->player_id, $getSession->currency);
+            if(isset($data_origin['balance'])) {
+                $data_origin['options']['currency']['code'] = $getSession->currency;
+                $data_origin['balance'] = self::generalizedBalanceCall($getSession->player_id, $getSession->currency);
+            }
         }
 
-        }
-
-        if($request->command === 'spin' || $request->command === 'flip') {
+        if($request->command === 'spin' || $request->command === 'flip' || $request->command === 'start' || $request->command === 'stop' || $request->command === 'step') {
                 
                 // heads or tails game
                 if($request->command === 'flip') {
@@ -158,7 +193,7 @@ class GameTunnelAPI extends Controller
                         $winAmount = 0;
 
                         if(isset($data_origin['result']['total'])) {
-                            $winAmount =  $data_origin['result']['total'];
+                            $winAmount = $data_origin['result']['total'];
                         }
                         if(isset($data_origin['game']['state'])) {
                             if($data_origin['game']['state'] === 'closed') {
@@ -167,11 +202,46 @@ class GameTunnelAPI extends Controller
                         }
                 }
 
-                // Old BGAMING api, where you can set individual betlines when placing bet (* bet amount per betline)
-                if(isset($request['extra_data'])) {
-                        $multiplier = count($request['options']['bets']);
-                        $betAmount = (int) $multiplier * $request['options']['bets']['0'];
+                // minesweeper xy
+                if($request->command === 'start' || $request->command === 'stop' || $request->command === 'step') {
                         $winAmount = 0;
+                        $betAmount = 0;
+
+                        if(isset($request['options']['bet'])) {
+                            $betAmount = (int) $request['options']['bet'];
+                        }
+                        if(isset($data_origin['game']['action'])) {
+                            if($data_origin['game']['action'] === 'stop') {
+                                $winAmount = $data_origin['result'];
+                            }
+
+                        }
+                        if(isset($data_origin['game']['state'])) {
+                            if($data_origin['game']['state'] === 'closed' || $data_origin['game']['action'] === 'start') {
+                            $data_origin['balance'] = self::generalizedBetCall($getSession->player_id, $getSession->currency, $getSession->gameid, $betAmount, $winAmount);
+                            }
+                        }
+        
+                    $data_origin['balance'] = self::generalizedBalanceCall($getSession->player_id, $getSession->currency);
+                    
+
+                    return response()->json($data_origin);                
+                }
+
+
+                // Old BGAMING api, where you can set individual betlines when placing bet (* bet amount per betline)
+                if(isset($request['extra_data']) || isset($request['options']['bets'])) {
+                        $multiplier = count($request['options']['bets']);
+                        $betAmount = (int) ($multiplier * $request['options']['bets']['0']);
+                        $winAmount = 0;
+
+                        if(isset($request['options']['buy_feature'])) {
+                            $betAmount = $betAmount * 100;
+                        } elseif(isset($data_origin['game']['state'])) {
+                            if($data_origin['game']['state'] === 'freespin') {
+                                $betAmount = 0;
+                            }
+                        }
 
                         if(isset($data_origin['result']['total'])) {
                             $winAmount = $data_origin['result']['total'];
