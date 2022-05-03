@@ -51,35 +51,126 @@ class GameTunnelAPI extends Controller
     }
 
 
-    public function pragmaticplayMixed(Request $request)
+    public function pragmaticCurlRespin($data)
     {
-        $game = $request->game_slug;
-        $realToken = $request->token;
-        $command = $request->command;
-
-
-
-        $urlFullUrl = $request->fullUrl();
-        $urlReplaceToReal = str_replace(env('APP_URL').'/gs2c/ge/v4/gameService', 'https://demogamesfree.pragmaticplay.net/gs2c/ge/v4/gameService', $urlFullUrl);
-        $url = $urlReplaceToReal;
-
-        Log::debug($urlReplaceToReal);
-        $data = $request->getContent();
+        $url = "https://demogamesfree.ppgames.net/gs2c/v3/gameService";
         $curl = curl_init($url);
         curl_setopt($curl, CURLOPT_URL, $url);
+        curl_setopt($curl, CURLOPT_POST, true);
         curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($curl, CURLOPT_HTTPHEADER, array('Content-Type: application/json', 'Accept: application/json'));
-        curl_setopt($curl, CURLOPT_POST, 1); 
+
+        $headers = array(
+           "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:100.0) Gecko/20100101 Firefox/100.0",
+           "Accept: */*",
+           "Content-Type: application/x-www-form-urlencoded",
+           "Origin: https://demogamesfree.ppgames.net",
+           "Referer: https://demogamesfree.ppgames.net/",
+        );
+        curl_setopt($curl, CURLOPT_HTTPHEADER, $headers);
         curl_setopt($curl, CURLOPT_POSTFIELDS, $data);
+
+        //for debug only!
         curl_setopt($curl, CURLOPT_SSL_VERIFYHOST, false);
         curl_setopt($curl, CURLOPT_SSL_VERIFYPEER, false);
-
         $resp = curl_exec($curl);
         curl_close($curl);
-     
-        $data_origin = json_decode($resp, true);
 
-        return response()->json($data_origin);                
+        return $resp;
+    }
+
+
+    public function pragmaticCurlRequest(Request $request)
+    {
+
+        $urlFullUrl = $request->fullUrl();
+        $urlReplaceToReal = str_replace('https://tester.tollgate.io', 'https://demogamesfree.ppgames.net', $urlFullUrl);
+        $url = $urlReplaceToReal;
+
+        Log::debug($url);
+
+        $curl = curl_init($url);
+        curl_setopt($curl, CURLOPT_URL, $url);
+        curl_setopt($curl, CURLOPT_POST, true);
+        curl_setopt($curl, CURLOPT_RETURNTRANSFER, true);
+
+        $headers = array(
+           "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:100.0) Gecko/20100101 Firefox/100.0",
+           "Accept: */*",
+           "Content-Type: application/x-www-form-urlencoded",
+           "Origin: https://demogamesfree.ppgames.net",
+           "Referer: https://demogamesfree.ppgames.net/",
+        );
+        curl_setopt($curl, CURLOPT_HTTPHEADER, $headers);
+
+        $data = $request->getContent();
+
+        curl_setopt($curl, CURLOPT_POSTFIELDS, $data);
+
+        //for debug only!
+        curl_setopt($curl, CURLOPT_SSL_VERIFYHOST, false);
+        curl_setopt($curl, CURLOPT_SSL_VERIFYPEER, false);
+        $resp = curl_exec($curl);
+        curl_close($curl);
+
+        return $resp;
+    }
+
+    public function pragmaticplayMixed(Request $request)
+    {   
+        //Curl forward to pragmatic server
+        $query_string = self::pragmaticCurlRequest($request);
+
+        parse_str($query_string, $q_arr);
+        $balanceCallNeeded = true;
+
+        if(isset($q_arr['c'])) {
+            $betAmount = $q_arr['c'] * $q_arr['l'] * 100;
+            $balanceCallNeeded = false;
+            $balanceFinal = self::generalizedBetCall(auth()->user()->id, 'USD', 'vs20drtgold.pragmaticplay-d', $betAmount, 0) / 100;;
+        }
+
+        if(isset($q_arr['w'])) {
+            $winRaw = floatval($q_arr['w']);
+            if($winRaw !== '0.00') {
+
+                // Respin on big win, this should be set in presets most likely in database
+                // This respin is only done once, that means there is still a chance the respin triggers another win (while unlikely)
+                if($winRaw > '999999.00') {
+                    $data = $request->getContent();
+                    parse_str($data, $q_arr_request);
+                    $q_arr_request['counter'] = $q_arr_request['counter'] + 2;
+                    $q_arr_request['index'] = $q_arr_request['index'] + 1;
+                    $resp = http_build_query($q_arr_request);
+                    $resp = urldecode($resp);            
+                    $query_string = self::pragmaticCurlRespin($resp);
+                    parse_str($query_string, $q_arr);
+
+                    if(isset($q_arr['w'])) {
+                        if(is_numeric($q_arr['w'])) {
+                            $winAmount = $q_arr['w'] * 100;
+                            $balanceFinal = self::generalizedBetCall(auth()->user()->id, 'USD', 'vs20drtgold.pragmaticplay-d', 0, $winAmount) / 100;
+                        } else {
+                            $q_arr['balance'] = auth()->user()->balance_usd;
+                        }
+                    }
+                } else { 
+                $winAmount = $q_arr['w'] * 100;
+                $balanceFinal = self::generalizedBetCall(auth()->user()->id, 'USD', 'vs20drtgold.pragmaticplay-d', 0, $winAmount) / 100;
+                }
+            }
+        }
+
+        if($balanceCallNeeded === true) {
+            $balanceFinal = self::generalizedBalanceCall(auth()->user()->id, 'USD') / 100;
+        }
+
+        $q_arr['balance'] = $balanceFinal;
+
+        //generate new query string
+        $resp = http_build_query($q_arr);
+        $resp = urldecode($resp);
+        
+        return $resp;
     }
 
     public function bgamingMixed(Request $request)

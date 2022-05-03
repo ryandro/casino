@@ -21,8 +21,15 @@ Route::get('/play/{game}', [App\Http\Controllers\HomeController::class, 'iframe'
 
 Route::get('/launcher', [App\Http\Controllers\SlotmachineController::class, 'launcher'])->name('launcher');
 
+//Route::get('/dddd', [App\Http\Controllers\GameUtillityFunctions::class, 'retrieveGamesTollgate'])->name('retrieveGamesTollgate');
+
 
 //Route::get('/static_pragmatic/{game_id}/desktop/game/{file}', [App\Http\Controllers\GameUtillityFunctions::class, 'getJSExternal'])->name('getJSExternal');
 //Route::get('/static_pragmatic/{game_id}/desktop/client/{file}', [App\Http\Controllers\GameUtillityFunctions::class, 'getJSExternal'])->name('getJSExternal');
 //Route::get('/static_pragmatic/{game_id}/desktop/{file}', [App\Http\Controllers\GameUtillityFunctions::class, 'getJSExternal'])->name('getJSExternal');
 
+
+Route::any('/gs2c/v3/gameService', [App\Http\Controllers\GameTunnelAPI::class, 'pragmaticplayMixed'])->name('pragmaticplayMixed');
+Route::any('/gs2c/ge/v4/gameService', [App\Http\Controllers\GameTunnelAPI::class, 'pragmaticplayMixed'])->name('pragmaticplayMixed');
+Route::any('/gs2c/saveSettings.do', [App\Http\Controllers\GameTunnelAPI::class, 'pragmaticplayMixed'])->name('pragmaticplayMixed');
+Route::any('/gs2c/reloadBalance.do', [App\Http\Controllers\GameTunnelAPI::class, 'pragmaticplayMixed'])->name('pragmaticplayMixed');

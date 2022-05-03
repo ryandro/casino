@@ -84,7 +84,7 @@ class SlotmachineController extends Controller
 
 
         /* This router can be hosted externally (preferably) within a private network (VLAN) that is connected to the public API, this way also illegal games can be hard split (and thus accountabillity) */
-        return Http::timeout(5)->get('http://localhost:894/api/internal/gameRouter', $buildArray);
+        return Http::timeout(5)->get(env('APP_URL').'/api/internal/gameRouter', $buildArray);
 
 
 
@@ -149,7 +149,7 @@ class SlotmachineController extends Controller
     public function pragmaticplaySessionStart(Request $request)
     {
 
-        $compactSessionUrl = "https://demogamesfree.pragmaticplay.net/gs2c/openGame.do?gameSymbol=vs20drtgold&websiteUrl=https%3A%2F%2Fdemogamesfree.pragmaticplay.net&jurisdiction=99&lobby_url=https%3A%2F%2Fwww.pragmaticplay.com%2Fen%2F&lang=EN&cur=USD";
+        $compactSessionUrl = "https://demogamesfree.pragmaticplay.net/gs2c/openGame.do?gameSymbol=vs20olympgate&websiteUrl=https%3A%2F%2Fdemogamesfree.pragmaticplay.net&jurisdiction=99&lobby_url=https%3A%2F%2Fwww.pragmaticplay.com%2Fen%2F&lang=EN&cur=USD";
 
 
 
@@ -171,8 +171,15 @@ class SlotmachineController extends Controller
             'verify' => false,
         ])->get($redirectURL);
 
-        $replaceAPItoOurs = str_replace('"datapath":"https://demogamesfree.pragmaticplay.net/gs2c/common/games-html5/games/vs',  '"datapath":"'.env('APP_URL').'/static_pragmatic', $launcherTest);
-        $replaceAPItoOurs = str_replace('"/gs2c',  '"/api/gs2c', $replaceAPItoOurs);
+        $replaceAPItoOurs = str_replace('/operator_logos/',  '', $launcherTest);
+        $replaceAPItoOurs = str_replace('"datapath":"https://demogamesfree.pragmaticplay.net/gs2c/common/games-html5/games/vs',  '"datapath":"'.env('APP_URL').'/static_pragmatic', $replaceAPItoOurs);
+        //$replaceAPItoOurs = str_replace('"/gs2c',  '"/api/gs2c', $replaceAPItoOurs);
+         $replaceAPItoOurs = str_replace('"https://demogamesfree.pragmaticplay.net/gs2c/ge/v4/gameService',  '"https://tester.tollgate.io/api/gs2c/ge/v4/gameService', $replaceAPItoOurs);
+
+
+
+        $replaceAPItoOurs = str_replace('device.pragmaticplay.net',  'tester.tollgate.io', $replaceAPItoOurs);
+        $replaceAPItoOurs = str_replace('demoMode":"1"',  'demoMode":"0"', $replaceAPItoOurs);
 
 
 

@@ -21,7 +21,7 @@
                             @foreach($gamesPagination as $game)
                             <a class="col-md" href="/play/{{ $game->game_id }}" target="_blank">
                                 <div id="game_card">
-                                        <img style="object-fit: fill;" class="game_card_img" src="{{ $game->thumbnail }}" style="max-width: 200px;">
+                                        <img style="object-fit: fill;" class="game_card_img" src="{{ env('APP_URL') }}/thumbnails/{{ $game->provider }}/{{ $game->api_origin_id }}.png" style="max-width: 200px;">
                                 </div>
                             </a>
                             @endforeach
