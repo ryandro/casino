@@ -83,10 +83,8 @@ class GameTunnelAPI extends Controller
     {
 
         $urlFullUrl = $request->fullUrl();
-        $urlReplaceToReal = str_replace('https://tester.tollgate.io', 'https://demogamesfree.ppgames.net', $urlFullUrl);
+        $urlReplaceToReal = str_replace('https://tester.tollgate.io/api', 'https://demogamesfree.ppgames.net', $urlFullUrl);
         $url = $urlReplaceToReal;
-
-        Log::debug($url);
 
         $curl = curl_init($url);
         curl_setopt($curl, CURLOPT_URL, $url);
@@ -110,23 +108,38 @@ class GameTunnelAPI extends Controller
         curl_setopt($curl, CURLOPT_SSL_VERIFYHOST, false);
         curl_setopt($curl, CURLOPT_SSL_VERIFYPEER, false);
         $resp = curl_exec($curl);
+
         curl_close($curl);
 
         return $resp;
     }
 
+    public function pragmaticplayReloadBalance(Request $request)
+    {
+
+
+    }
+
+
     public function pragmaticplayMixed(Request $request)
     {   
+        $data = $request->getContent();
+        parse_str($data, $q_arr_request);
+        $realToken = $q_arr_request['mgckey'];
+        $getSession = \App\Models\GameSessions::where('token_original', $realToken)->first();
+        if($getSession) {
+
         //Curl forward to pragmatic server
         $query_string = self::pragmaticCurlRequest($request);
 
         parse_str($query_string, $q_arr);
         $balanceCallNeeded = true;
 
+
         if(isset($q_arr['c'])) {
             $betAmount = $q_arr['c'] * $q_arr['l'] * 100;
             $balanceCallNeeded = false;
-            $balanceFinal = self::generalizedBetCall(auth()->user()->id, 'USD', 'vs20drtgold.pragmaticplay-d', $betAmount, 0) / 100;;
+            $balanceFinal = self::generalizedBetCall($getSession->player_id, $getSession->currency, $getSession->extra_meta, $betAmount, 0) / 100;;
         }
 
         if(isset($q_arr['w'])) {
@@ -135,9 +148,7 @@ class GameTunnelAPI extends Controller
 
                 // Respin on big win, this should be set in presets most likely in database
                 // This respin is only done once, that means there is still a chance the respin triggers another win (while unlikely)
-                if($winRaw > '999999.00') {
-                    $data = $request->getContent();
-                    parse_str($data, $q_arr_request);
+                if($winRaw > '2122121.00') {
                     $q_arr_request['counter'] = $q_arr_request['counter'] + 2;
                     $q_arr_request['index'] = $q_arr_request['index'] + 1;
                     $resp = http_build_query($q_arr_request);
@@ -148,20 +159,20 @@ class GameTunnelAPI extends Controller
                     if(isset($q_arr['w'])) {
                         if(is_numeric($q_arr['w'])) {
                             $winAmount = $q_arr['w'] * 100;
-                            $balanceFinal = self::generalizedBetCall(auth()->user()->id, 'USD', 'vs20drtgold.pragmaticplay-d', 0, $winAmount) / 100;
+                            $balanceFinal = self::generalizedBetCall($getSession->player_id, $getSession->currency, $getSession->extra_meta, 0, $winAmount) / 100;
                         } else {
                             $q_arr['balance'] = auth()->user()->balance_usd;
                         }
                     }
                 } else { 
                 $winAmount = $q_arr['w'] * 100;
-                $balanceFinal = self::generalizedBetCall(auth()->user()->id, 'USD', 'vs20drtgold.pragmaticplay-d', 0, $winAmount) / 100;
+                $balanceFinal = self::generalizedBetCall($getSession->player_id, $getSession->currency, $getSession->extra_meta, 0, $winAmount) / 100;
                 }
             }
         }
 
         if($balanceCallNeeded === true) {
-            $balanceFinal = self::generalizedBalanceCall(auth()->user()->id, 'USD') / 100;
+            $balanceFinal = self::generalizedBalanceCall($getSession->player_id, $getSession->currency) / 100;
         }
 
         $q_arr['balance'] = $balanceFinal;
@@ -171,6 +182,13 @@ class GameTunnelAPI extends Controller
         $resp = urldecode($resp);
         
         return $resp;
+
+
+        } else {
+
+            abort(500, 'Session not found');
+            die;
+        }
     }
 
     public function bgamingMixed(Request $request)

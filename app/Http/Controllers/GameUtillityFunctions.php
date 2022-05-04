@@ -49,6 +49,106 @@ class GameUtillityFunctions extends Controller
     }
 
 
+    public static function convertPragmaticList()
+    {
+        $getList = DB::table('gamelist_pragmatic')->get();
+        $api_origin_id = 'demo_method';
+        $getList = json_decode($getList, true);
+
+        foreach($getList as $gameItem)
+        {  
+            if($gameItem['Game_ID'] !== NULL) {
+            $rtpExplode = explode('%', $gameItem['RTPs']);
+            $rtp = $rtpExplode[0];
+            $rtp = str_replace('%', '', $rtp);
+            $thumbnail_id = str_replace(' ', '', $gameItem['Game_Name']);
+            if($gameItem['Game_ID'] !== NULL) {
+                $ourOwnGameID = self::createNormalizedGameIDFormat($gameItem['Game_Name'], 'pragmaticplay', 'demo_method') ?? $gameItem['game_name'];
+                //Transforming Booongo/Playson list to our format, we then check database based on the api_origin_id & the normalized game ID we created above //
+                $transformInFormat[] = array(
+                    'fullName' => $gameItem['Game_Name'],
+                    'game_id' => $ourOwnGameID,
+                    'thumbnail' => '/pragmaticexternal/'.$thumbnail_id.'.png',
+                    'thumbnail_ext' => 'https://cdn2.softswiss.net/i/s2/pragmatic/'.$thumbnail_id.'.png',
+                    'provider' => 'pragmaticplay',
+                    'open' => 1,
+                    'isRecommend' => 0,
+                    'isNew' => 0,
+                    'isHot' => 0,
+                    'funplay' => 1,
+                    'rtpDes' => number_format(floatval($rtp), '2', '.', ''),
+                    'category' => 'slots',
+                    'short_desc' => NULL,
+                    'api_origin_id' => $gameItem['Game_ID'],
+                    'api_extension' => $api_origin_id,
+                    'api_extra' => NULL,
+                    'released_at' => NULL,
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                );
+
+
+        $getFullGamelist = Gamelist::all();
+        $selectExistingGame = $getFullGamelist->where('game_id', '=', $ourOwnGameID)->where('provider', 'pragmaticplay')->first();
+        if(!$selectExistingGame) {
+            $selectExistingGame = Gamelist::insert([
+                    'fullName' => $gameItem['Game_Name'],
+                    'game_id' => $ourOwnGameID,
+                    'thumbnail' => '/pragmaticplay/'.$thumbnail_id.'.png',
+                    'thumbnail_ext' => 'https://cdn2.softswiss.net/i/s2/pragmaticexternal/'.$thumbnail_id.'.png',
+                    'provider' => 'pragmaticplay',
+                    'open' => 1,
+                    'isRecommend' => 0,
+                    'isNew' => 0,
+                    'isHot' => 0,
+                    'funplay' => 1,
+                    'rtpDes' => number_format(floatval($rtp), '2', '.', ''),
+                    'category' => 'slots',
+                    'short_desc' => NULL,
+                    'api_origin_id' => $gameItem['Game_ID'],
+                    'api_extension' => $api_origin_id,
+                    'api_extra' => NULL,
+                    'released_at' => NULL,
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
+
+        } else {
+
+            // Put update function here if you wish to upsert/modify existing game records with updated info from the game-list retrieval.
+            // Simply delete rows - probably you would need to create a main function for this to setup globally, depends  how many providers you plan on maintaining & updating
+
+            $selectExistingGame->update([
+                    'fullName' => $gameItem['Game_Name'],
+                    'game_id' => $ourOwnGameID,
+                    'thumbnail' => '/pragmaticplay/'.$thumbnail_id.'.png',
+                    'thumbnail_ext' => 'https://cdn2.softswiss.net/i/s2/pragmaticexternal/'.$thumbnail_id.'.png',
+                    'provider' => 'pragmaticplay',
+                    'open' => 1,
+                    'isRecommend' => 0,
+                    'isNew' => 0,
+                    'isHot' => 0,
+                    'funplay' => 1,
+                    'rtpDes' => number_format(floatval($rtp), '2', '.', ''),
+                    'category' => 'slots',
+                    'short_desc' => NULL,
+                    'api_origin_id' => $gameItem['Game_ID'],
+                    'api_extension' => $api_origin_id,
+                    'api_extra' => NULL,
+                    'released_at' => NULL,
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
+        } 
+    }
+}
+        
+            }
+
+            return $transformInFormat;
+ }
+
+
     public static function createNormalizedGameIDFormat($name, $provider, $api_id) 
     {
 

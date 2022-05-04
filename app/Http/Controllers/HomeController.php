@@ -88,9 +88,9 @@ class HomeController extends Controller
             if($method === 'index') {
                 $gamelistCached = Gamelist::cachedGamelist();
                 if($gamelistCached->count() > $amount) {
-                   $getGames = $gamelistCached->take($amount);
+                   $getGames = $gamelistCached->random($amount);
                 } else {
-                    $getGames = $gamelistCached->take($gamelistCached->count());
+                    $getGames = $gamelistCached->random($gamelistCached->count());
                 }
 
             } elseif($method === 'groupByProvider') {
