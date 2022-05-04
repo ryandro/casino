@@ -18,7 +18,7 @@ class GameUtillityFunctions extends Controller
         $requestUrl = $request->fullUrl();
 
 
-        $urlReplaceToReal = str_replace(env('APP_URL').'/static_pragmatic/', 'https://demogamesfree.pragmaticplay.net/gs2c/common/games-html5/games/vs/', $requestUrl);
+        $urlReplaceToReal = str_replace(config('app.pragmaticplay_static_url'), 'https://demogamesfree.pragmaticplay.net/gs2c/common/games-html5/games/vs/', $requestUrl);
         $url = $urlReplaceToReal;
  
 

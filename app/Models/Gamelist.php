@@ -6,6 +6,8 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Cache;
 use \Carbon\Carbon; 
 use Spatie\QueryBuilder\QueryBuilder;
+use Illuminate\Http\Response;
+use Illuminate\Support\Arr;
 
 class Gamelist extends Model
 {
@@ -47,7 +49,34 @@ class Gamelist extends Model
         return $data;
     }
 
-    public static function cachedGamelist() {
+    public static function buildGamesList($method = NULL) {
+
+        $getAllGames = self::all();
+    
+            $index = 0;
+            foreach($getAllGames as $game) {
+
+            $provider = $game['provider'];
+            $presetCompactID = 'provider_'.$game['provider'];
+            $getPreset = \App\Models\Presets::returnBoolValue($presetCompactID);
+
+            if($getPreset) {
+            $index++;
+                $array[] = $game;
+            }
+
+        }
+        if($method === 'count') {
+            return $index;
+        }
+
+        return $array;
+
+    }
+
+
+    public static function cachedGamelist($method = NULL) {
+
         $gamelistResponse = Cache::get('cachedGamelist');
 
         if(env('APP_ENV' === 'local')) {
@@ -55,9 +84,15 @@ class Gamelist extends Model
         }
 
         if(!$gamelistResponse) {
-            $gamelistResponse = self::all();
+            $gamelistResponse = self::buildGamesList();
 
-            $gamelist = Cache::put('cachedGamelist', $gamelistResponse, 15); // in minutes
+            $gamelist = Cache::put('cachedGamelist', $gamelistResponse, config('app.cache_gamelist_length')); // in minutes cache
+            $gameCount = Cache::put('cachedGamelistCount', self::buildGamesList('count'), config('app.cache_gamelist_length')); // in minutes cache
+        }
+
+
+        if($method === 'count') {
+            return Cache::get('cachedGamelistCount') ?? 0;
         }
 
         return $gamelistResponse;
@@ -69,12 +104,15 @@ class Gamelist extends Model
         if(env('APP_ENV' === 'local')) { Artisan::command('optimize:clear'); }
 
         if(!$gamespecificCached) {
-            $selectGame = self::cachedGamelist()->where('game_id', '=', $game_id)->first();
+            $selectGame = self::cachedGamelist();
+            $selectGame = Arr::get($selectGame, 'game_id.'.$game_id);
 
             if($selectGame) {
-            $gamespecificCached = Cache::put('cachedIndividualGame'.$game_id, $selectGame, 30); // in minutes
+            $gamespecificCached = Cache::put('cachedIndividualGame'.$game_id, $selectGame, config('app.cache_gamelist_length'));// in minutes
             } else {
-                return 'not found';
+                return response()->json([
+                    'error' => 'game not found'
+                ], 404);
             }
         }
         return $gamespecificCached;

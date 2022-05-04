@@ -8,6 +8,8 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Http;
 use \Carbon\Carbon;
 use Illuminate\Support\Str;
+use App\Models\GameSessions;
+use Illuminate\Support\Facades\Validator;
 
 class SlotmachineController extends Controller
 {
@@ -22,7 +24,7 @@ class SlotmachineController extends Controller
     }
 
     /**
-     * Generate game for player
+     * Generate ga me for player
      *
      * @return \Illuminate\Contracts\Support\Renderable
      */
@@ -33,37 +35,33 @@ class SlotmachineController extends Controller
         }
 
         //Mode should be added (demo, currency etc.), currency should be in DOM of user
-        $validateQueryData = $request->validate([
+
+        $validator = Validator::make($request->all(), [ 
             'game_id' => ['required', 'max:35', 'min:3'],
             'provider' => ['optional', 'max:15'],
             'api_extension' => ['optional', 'max:10'],
+            'cur' => ['optional', 'max:10'],
+            'lang' => ['optional', 'max:10'],
         ]);
 
+
+
         if(!auth()->user()) {
-            // ! Error user not logged in
-        } else {
-            /* User Retrieve & Balance */
-            $playerID = auth()->user()->id;
-            $balance = auth()->user()->balance('USD'); //can add multi currency
+           abort(419, 'User login expired or does not exist');
         }
 
         /* Game Select & Retrieve */
-        $game_id = $request->game_id; 
-        $selectGame = Gamelist::cachedGamelist()->where('game_id', '=', $game_id)->where('open', 1)->first();
+        $gamelistCached = Gamelist::cachedGamelist();
+        $selectGame = Controller::helperArrayWhereGet($gamelistCached, 'game_id', $request->game_id)->first();
 
         if(!$selectGame) {
-            // ! Error game_id not found 
-        }
-
+            abort(404, 'Game not found');
+        } 
         $strLowerProvider = strtolower($selectGame->provider);
         if($request->provider) {
             $strLowerProvider = strtolower($request->provider);
         }
-        $arrayAvailableProviders = 'bgaming, whatever'; // should be operator specific to check if provider is enabled for operator
 
-        if(!isset($strLowerProvider, $arrayAvailableProviders)) {
-            // ! Error provider not available or found
-        }
 
 
 
@@ -74,7 +72,7 @@ class SlotmachineController extends Controller
             'api_extension' => $selectGame->api_extension,
             'provider' => $strLowerProvider,
             'player' => auth()->user()->id,
-            'currency' => 'USD', // should be in request
+            'currency' => $request->cur, // should be in request
             'mode' => 'real', //should be in request demo/real money play
             'method' => 'gameRequestByPlayer',
         );
@@ -84,7 +82,7 @@ class SlotmachineController extends Controller
 
 
         /* This router can be hosted externally (preferably) within a private network (VLAN) that is connected to the public API, this way also illegal games can be hard split (and thus accountabillity) */
-        return Http::timeout(5)->get(env('APP_URL').'/api/internal/gameRouter', $buildArray);
+        return Http::timeout(5)->get(config('app.url').'/api/internal/gameRouter', $buildArray);
 
 
 
@@ -151,13 +149,13 @@ class SlotmachineController extends Controller
         $fullContent = $request;
 
         //Check if existing internal session is available
-        $getInternalSession = \App\Models\GameSessions::where('game_id', $fullContent->game_id)->where('player_id', $fullContent->player)->where('currency', $fullContent->currency)->where('created_at', '>', Carbon::now()->subMinutes(45))->first();
+        $getInternalSession = GameSessions::where('game_id', $fullContent->game_id)->where('player_id', $fullContent->player)->where('currency', $fullContent->currency)->where('created_at', '>', Carbon::now()->subMinutes(45))->first();
   
         $newSession = false;
 
         //Create new internal session to relate towards, we will invalidate it after 45 minutes, mainly is used for 'continued' play so for exmaple if player leaves in middle of a bonus round or whatever, to connect to same session to continue play
         if(!$getInternalSession) {
-            $createInternalSession = \App\Models\GameSessions::create([
+            $createInternalSession = GameSessions::create([
                 'game_id' => $fullContent->game_id,
                 'token_internal' => Str::uuid(),
                 'token_original' => '0',
@@ -215,13 +213,11 @@ class SlotmachineController extends Controller
 
 
         $replaceAPItoOurs = str_replace('/operator_logos/',  '', $launcherTest);
-        $replaceAPItoOurs = str_replace('"datapath":"https://demogamesfree.pragmaticplay.net/gs2c/common/games-html5/games/vs',  '"datapath":"'.env('APP_URL').'/static_pragmatic', $replaceAPItoOurs);
+        $replaceAPItoOurs = str_replace('"datapath":"https://demogamesfree.pragmaticplay.net/gs2c/common/games-html5/games/vs/',  '"datapath":"'.config('app.pragmaticplay_static_url'), $replaceAPItoOurs);
         //$replaceAPItoOurs = str_replace('"/gs2c',  '"/api/gs2c', $replaceAPItoOurs);
-         $replaceAPItoOurs = str_replace('"https://demogamesfree.pragmaticplay.net/gs2c/ge/v4/gameService',  '"https://tester.tollgate.io/api/gs2c/ge/v4/gameService', $replaceAPItoOurs);
-
-
-
-        $replaceAPItoOurs = str_replace('device.pragmaticplay.net',  'tester.tollgate.io', $replaceAPItoOurs);
+        $replaceAPItoOurs = str_replace('"https://demogamesfree.pragmaticplay.net/gs2c/ge/v4/gameService',  '"'.config('app.url').'/api/gs2c/ge/v4/gameService', $replaceAPItoOurs);
+        $deviceURL = str_replace('https://', '', config('app.url'));
+        $replaceAPItoOurs = str_replace('device.pragmaticplay.net',  $deviceURL, $replaceAPItoOurs);
         $replaceAPItoOurs = str_replace('demoMode":"1"',  'demoMode":"0"', $replaceAPItoOurs);
 
         $replaceAPItoOurs = str_replace('/gs2c/v3/gameService',  '/api/gs2c/v3/gameService', $replaceAPItoOurs);
@@ -251,13 +247,15 @@ class SlotmachineController extends Controller
      */
     public function booongoSessionStart(Request $request)
     {
-        // Will be trying diff method on this provisioning, in regards to 'balance modification' to hide within in there a simple socket/pusher //
-        
+
+
+        // WORK IN PROGRESS, NOT FINISHED AT ALL YET
+
         $booongo_apikey = 'hj1yPYivJmIX4X1I1Z57494re';
 
         $fullContent = $request;
         $ourGameID = $fullContent->game;
-        $selectGameBng = \App\Models\Gamelist::where('game_id', $ourGameID)->first(); // this shld be cached individually (on short cache game id strings)        
+        $selectGameBng = Gamelist::where('game_id', $ourGameID)->first(); // this shld be cached individually (on short cache game id strings)        
         $gameName = $selectGameBng->fullName;
 
         $api_origin_id = $selectGameBng->api_origin_id;
@@ -311,7 +309,7 @@ class SlotmachineController extends Controller
 
 
         //Check if existing internal session is available
-        $getInternalSession = \App\Models\GameSessions::where('game_id', $fullContent->game_id)->where('player_id', $fullContent->player)->where('currency', $fullContent->currency)->where('created_at', '>', Carbon::now()->subMinutes(45))->first();
+        $getInternalSession = GameSessions::where('game_id', $fullContent->game_id)->where('player_id', $fullContent->player)->where('currency', $fullContent->currency)->where('created_at', '>', Carbon::now()->subMinutes(45))->first();
         
         // <!!!! TESTING SESSION, UNCOMMMENT ABOVE - self note !>>>>
         //$getInternalSession = NULL;
@@ -320,7 +318,7 @@ class SlotmachineController extends Controller
 
         //Create new internal session to relate towards, we will invalidate it after 45 minutes, mainly is used for 'continued' play so for exmaple if player leaves in middle of a bonus round or whatever, to connect to same session to continue play
         if(!$getInternalSession) {
-            $createInternalSession = \App\Models\GameSessions::create([
+            $createInternalSession = GameSessions::create([
                 'game_id' => $fullContent->game_id,
                 'token_internal' => Str::uuid(),
                 'token_original' => '0',
@@ -389,9 +387,9 @@ class SlotmachineController extends Controller
         $removeExistingAnalytics = str_replace('sentry', ' ', $removeExistingAnalytics);
         $removeExistingAnalytics = str_replace('https://js-agent.newrelic.com/nr-1215.min.js', ' ', $removeExistingAnalytics);
 
-        //$url = str_replace('resources_path":"https://cdn.bgaming-network.com/html/BonanzaBillion', 'resources_path":"'.env('APP_URL').'/static/prod/HappyBillions-2', $removeExistingAnalytics);
-        //$url = str_replace('https://cdn.bgaming-network.com/html/BonanzaBillion/loader.js', env('APP_URL').'/static/prod/HappyBillions-2/loader.js', $url);
-        //$url = str_replace('https://cdn.bgaming-network.com/html/BonanzaBillion/bundle.js', env('APP_URL').'/static/prod/HappyBillions-2/basic/v0.0.1/bundle.js', $url);
+        //$url = str_replace('resources_path":"https://cdn.bgaming-network.com/html/BonanzaBillion', 'resources_path":"'.config('app.url').'/static/prod/HappyBillions-2', $removeExistingAnalytics);
+        //$url = str_replace('https://cdn.bgaming-network.com/html/BonanzaBillion/loader.js', config('app.url').'/static/prod/HappyBillions-2/loader.js', $url);
+        //$url = str_replace('https://cdn.bgaming-network.com/html/BonanzaBillion/bundle.js', config('app.url').'/static/prod/HappyBillions-2/basic/v0.0.1/bundle.js', $url);
         $finalGameContent = $removeExistingAnalytics;
 
         return $finalGameContent;

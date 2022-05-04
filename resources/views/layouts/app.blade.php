@@ -67,9 +67,21 @@
                                     {{ Auth::user()->name }}
                                 </a>
 
-                                <a class="nav-link dropdown-toggle" href="#payment" role="button">
+                                <a id="currencyDropdown" class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-haspopup="true" aria-expanded="false" v-pre>
                                     {{ Auth::user()->balance($_COOKIE['currency'] ?? 'USD') }} {{ $_COOKIE['currency'] ?? 'USD' }}
                                 </a>
+
+                                <div class="dropdown-menu dropdown-menu-end" aria-labelledby="currencyDropdown">
+                                    <a class="dropdown-item" href="{{ route('logout') }}"
+                                       onclick="event.preventDefault();
+                                                     document.getElementById('logout-form').submit();">
+                                        {{ __('Logout') }}
+                                    </a>
+
+                                    <form id="logout-form" action="{{ route('logout') }}" method="POST" class="d-none">
+                                        @csrf
+                                    </form>
+                                </div>         
 
                                 <div class="dropdown-menu dropdown-menu-end" aria-labelledby="navbarDropdown">
                                     <a class="dropdown-item" href="{{ route('logout') }}"

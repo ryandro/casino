@@ -8,8 +8,7 @@ use App\Http\Controllers\GameUtillityFunctions;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Session;
-
-
+use Illuminate\Support\Facades\Validator;
 class HomeController extends Controller
 {
     /**
@@ -37,17 +36,26 @@ class HomeController extends Controller
     }
 
     public function iframe($game)
-    {
+    {   
+        $data = array('game', $game);
+
+        $validator = Validator::make(array('game' => $game), [
+            'game' => ['string', 'required', 'max:100', 'min:3'],
+            'cur' => ['string', 'optional'],
+            'lang' => ['string', 'optional'],
+        ]);
+
         $gamelistCached = Gamelist::cachedGamelist();
+        $getGame = Controller::helperArrayWhereGet($gamelistCached, 'game_id', $game);
 
         if(!auth()->user()) {
             Session::flash('error', 'You need to login.');
         }
-        if(!$gamelistCached->where('game_id', $game)->where('open', 1)->first()) {
+        if(!$getGame) {
             Session::flash('error', 'Game not found.');
         }
 
-        return view('iframe')->with('game', $game);
+        return view('iframe')->with('game', $game)->with('cur', $request->cur ?? 'USD')->with('lang', $request->lang ?? 'EN');
     }
 
 
@@ -87,10 +95,11 @@ class HomeController extends Controller
         try {
             if($method === 'index') {
                 $gamelistCached = Gamelist::cachedGamelist();
-                if($gamelistCached->count() > $amount) {
-                   $getGames = $gamelistCached->random($amount);
+                $count = Gamelist::cachedGamelist('count');
+                if($count > $amount) {
+                   $getGames = Controller::helperArrayToRandom($gamelistCached, $amount);
                 } else {
-                    $getGames = $gamelistCached->random($gamelistCached->count());
+                   $getGames = Controller::helperArrayToRandom($gamelistCached, $count);
                 }
 
             } elseif($method === 'groupByProvider') {

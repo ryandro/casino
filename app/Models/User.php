@@ -8,6 +8,7 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 use Illuminate\Support\Facades\Log;
+use App\Models\Presets;
 
 class User extends Authenticatable
 {
@@ -41,7 +42,15 @@ class User extends Authenticatable
         'email_verified_at' => 'datetime',
     ];
 
+    public function currencies()
+    {
 
+        $currencies = array([
+            'USD' => array('enabled' => Presets::returnBoolValue('currency_usd'), 'exchange_rate' => Presets::returnPresetValue('currency_usd'),
+
+        ])
+
+    }
     /**
      * Return main balance with multi-currency available
      *

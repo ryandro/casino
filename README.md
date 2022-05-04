@@ -1,35 +1,51 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400"></a></p>
+# Casino & API Setup Method of Demo
 
-<p align="center">
-<a href="https://travis-ci.org/laravel/framework"><img src="https://travis-ci.org/laravel/framework.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
 
-## About Laravel
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+### NGINX Proxy Pass
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+Below you can find nginx proxy blocks, used in reverse proxy. In case of the PPgames this is required to function, it's is adviseable to set this up on a proper server and with CLOUDFLARE. 
+To break cache, google for cache busting setup/config - this may be needed if games would suddenly change (unlikely). Does not affect possible outcome/manipulation in any case. 
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+This does make sure that all games are updated accordingly and totally automatic, without hosting a single frontend/static file in your own server.
 
-## Learning Laravel
+```
+	location /static_pragmatic/ {
+	    add_header 'Access-Control-Allow-Origin' '*' always;
+		add_header	'Access-Control-Allow-Methods' 'GET, POST, OPTIONS, HEAD' always;
+		add_header 'Access-Control-Allow-Credentials' 'true' always;
+		add_header 'Access-Control-Allow-Headers' 'Accept,Accept-Encoding,Authorization,Cache-Control,Content-Type,DNT,If-Modified-Since,Keep-Alive,Origin,User-Agent,X-Mx-ReqToken,X-Requested-With' always;
+	    add_header Cache-Control "public";
+	    proxy_pass http://demogamesfree.pragmaticplay.net/gs2c/common/games-html5/games/vs/;
+	    proxy_http_version 1.1;
+	    proxy_set_header Upgrade $http_upgrade;
+	    proxy_set_header Connection "upgrade";
+	    gzip_static on;
+	    access_log off;
+	    expires 1y;
+	}
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+	# assets, media
+	location ~* (.+)\.(?:\d+)\.(js|css|png|jpg|svg|jpeg|gif|webp)$ {
+	    etag off;
+	    expires 1M;
+	    access_log off;
+	    add_header Cache-Control "public";
+	    try_files $uri $1.$2;
+	}
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains over 2000 video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+	# svg, fonts
+	location ~* \.(?:svgz?|ttf|ttc|otf|eot|woff2?)$     {
+		add_header Access-Control-Allow-Origin "*";
+		expires 1y;
+		access_log off;
+	}
 
-## Laravel Sponsors
+	location ~ /\.(?!well-known).* {
+	    deny all;
+	}
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the Laravel [Patreon page](https://patreon.com/taylorotwell).
+```
 
 ### Premium Partners
 

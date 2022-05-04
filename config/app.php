@@ -30,6 +30,8 @@ return [
 
     'env' => env('APP_ENV', 'production'),
 
+
+
     /*
     |--------------------------------------------------------------------------
     | Application Debug Mode
@@ -42,6 +44,48 @@ return [
     */
 
     'debug' => (bool) env('APP_DEBUG', false),
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | Application Casino Settings
+    |--------------------------------------------------------------------------
+    | Storing env values here so we can later easily enable roadrunner cache (www.roadrunner.dev)
+    */
+
+    /* Server ip used for internal router middleware */
+    'server_ip' => env('APP_SERVER_IP', '127.0.0.1'),
+
+
+    /*  Delay to add extra, please be advised that this does constrain php a lot and can lead to php-pool spam - make sure php pool has enough children and spare servers to spawn. 
+        Currently applicable to: Pragmatic Play
+    */
+    'game_delay_trigger' => '0.00',
+    'game_delay_extra' => '4.3',
+
+    /*  Static proxy URL, set nginx reverse proxy as describe in readme.md */
+    'pragmaticplay_static_url' => env('APP_PRAGMATIC_STATIC_PROXY', 'https://localhost'),
+
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | Cache Settings for Casino Functions
+    |--------------------------------------------------------------------------
+    | In development areas, set the APP_ENV to local in .env - this will disable the caching, while you can leave value below like you wish for production
+    */
+
+    /* Cache duration in minutes for populated game list.  
+    /  Place: \App\Models\Gamelist.php
+    */
+    'cache_gamelist_length' => 15,
+
+    /* Cache duration in minutes for populated presets setting. 
+    /  Place: \App\Models\Presets.php
+    */
+    'cache_presets_length' => 10,
+
+
 
     /*
     |--------------------------------------------------------------------------
